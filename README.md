@@ -1,5 +1,7 @@
 # HAProxy LDAP Authentication Forwarder
 
+[![Build](https://travis-ci.com/clems4ever/haproxy-ldap-auth.svg?branch=master)](https://travis-ci.com/clems4ever/haproxy-ldap-auth)
+
 This project is a an agent allowing HAProxy to forward authentication requests to a LDAP server.
 
 ## Test it now!
