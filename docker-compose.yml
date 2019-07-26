@@ -46,4 +46,3 @@ services:
       - SLAPD_FORCE_RECONFIGURE=true
     volumes:
       - ./resources/ldap/base.ldif:/etc/ldap.dist/prepopulate/base.ldif
-      - ./resources/ldap/access.rules:/etc/ldap.dist/prepopulate/access.rules
