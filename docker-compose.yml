@@ -26,6 +26,7 @@ services:
     volumes:
       - .:/app
     environment:
+      - "ADDR=:8081"
       - "LDAP_URL=openldap"
       - "LDAP_USERDN=cn=admin,dc=example,dc=com"
       - "LDAP_PASSWORD=password"

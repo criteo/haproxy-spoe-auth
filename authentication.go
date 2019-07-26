@@ -11,7 +11,8 @@ import (
 
 // LDAPConnectionDetails represents the connection details
 type LDAPConnectionDetails struct {
-	URL        string
+	Hostname   string
+	Port       int
 	UserDN     string
 	Password   string
 	BaseDN     string
@@ -19,7 +20,7 @@ type LDAPConnectionDetails struct {
 }
 
 func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password string) error {
-	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", ldapDetails.URL, 389))
+	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", ldapDetails.Hostname, ldapDetails.Port))
 	if err != nil {
 		return err
 	}
