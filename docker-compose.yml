@@ -25,6 +25,9 @@ services:
     build: .
     volumes:
       - .:/app
+    environment:
+      - "USERDN=cn=admin,dc=example,dc=com"
+      - "PASSWORD=password"
     working_dir: /app
 
   openldap:
