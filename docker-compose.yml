@@ -7,15 +7,19 @@ services:
     ports:
       - "9080:80"
 
-  nginx-backend:
+  protected-backend:
     image: nginx
     volumes:
-      - ./resources/backend:/usr/share/nginx/html
+      - ./resources/protected:/usr/share/nginx/html
+  unprotected-backend:
+    image: nginx
+    volumes:
+      - ./resources/unprotected:/usr/share/nginx/html
 
-  error-backend:
+  unauthorized-backend:
     image: nginx
     volumes:
-      - ./resources/errors:/usr/share/nginx/html
+      - ./resources/unauthorized:/usr/share/nginx/html
 
   auth-backend:
     build: .
