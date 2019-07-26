@@ -1,4 +1,4 @@
-# HAProxy LDAP Authentication Forwarder
+# HAProxy LDAP Authentication
 
 [![Build](https://travis-ci.com/clems4ever/haproxy-ldap-auth.svg?branch=master)](https://travis-ci.com/clems4ever/haproxy-ldap-auth)
 
@@ -143,3 +143,7 @@ production yet unless you know what you're doing.
 * Create a pool of reusable connections to the LDAP server(s).
 * Create a cache of authenticated users with a TTL to avoid validating every queries against the LDAP server.
 * Allow to skip the search query when binding the user against the LDAP server.
+
+## License
+
+This project is licensed under the Apache 2.0 license. The terms of the license are detailed in LICENSE.
