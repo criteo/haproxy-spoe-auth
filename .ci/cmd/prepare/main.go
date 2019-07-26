@@ -39,6 +39,11 @@ func prepare() error {
 		return err
 	}
 
+	err = execute("docker-compose", "pull")
+	if err != nil {
+		return err
+	}
+
 	err = execute("docker-compose", "up", "-d")
 	if err != nil {
 		return err
