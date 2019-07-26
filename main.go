@@ -8,7 +8,7 @@ import (
 	spoe "github.com/criteo/haproxy-spoe-go"
 )
 
-func startAgent(bindusername, bindpassword string) {
+func startAgent(ldapDetails *LDAPConnectionDetails) {
 	agent := spoe.New(func(messages []spoe.Message) ([]spoe.Action, error) {
 		authenticated := false
 		for _, msg := range messages {
@@ -17,7 +17,7 @@ func startAgent(bindusername, bindpassword string) {
 				continue
 			}
 
-			err := handleAuthentication(&msg, bindusername, bindpassword)
+			err := handleAuthentication(&msg, ldapDetails)
 
 			if err != nil {
 				fmt.Println(err)
@@ -42,8 +42,11 @@ func startAgent(bindusername, bindpassword string) {
 }
 
 func main() {
-	ldapUserDNPtr := flag.String("userdn", "", "The username to connect to LDAP to perform search queries")
-	ldapPasswordPtr := flag.String("password", "", "The password of the user connecting to the LDAP to perform search queries")
+	ldapUserDNPtr := flag.String("ldap-userdn", "", "The username to connect to LDAP to perform search queries")
+	ldapPasswordPtr := flag.String("ldap-password", "", "The password of the user connecting to the LDAP to perform search queries")
+	ldapURLPtr := flag.String("ldap-url", "", "The URL to the LDAP server")
+	ldapBasePtr := flag.String("ldap-base-dn", "", "The base DN from where to look for users")
+	ldapUserFilterPtr := flag.String("ldap-user-filter", "(cn={})", "The filter used to find user in LDAP server")
 
 	flag.Parse()
 
@@ -57,5 +60,23 @@ func main() {
 		return
 	}
 
-	startAgent(*ldapUserDNPtr, *ldapPasswordPtr)
+	if ldapURLPtr == nil || (ldapURLPtr != nil && *ldapURLPtr == "") {
+		flag.PrintDefaults()
+		return
+	}
+
+	if ldapBasePtr == nil || (ldapBasePtr != nil && *ldapBasePtr == "") {
+		flag.PrintDefaults()
+		return
+	}
+
+	connectionDetails := LDAPConnectionDetails{
+		URL:        *ldapURLPtr,
+		UserDN:     *ldapUserDNPtr,
+		Password:   *ldapPasswordPtr,
+		BaseDN:     *ldapBasePtr,
+		UserFilter: *ldapUserFilterPtr,
+	}
+
+	startAgent(&connectionDetails)
 }

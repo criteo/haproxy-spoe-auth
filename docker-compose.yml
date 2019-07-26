@@ -26,8 +26,11 @@ services:
     volumes:
       - .:/app
     environment:
-      - "USERDN=cn=admin,dc=example,dc=com"
-      - "PASSWORD=password"
+      - "LDAP_URL=openldap"
+      - "LDAP_USERDN=cn=admin,dc=example,dc=com"
+      - "LDAP_PASSWORD=password"
+      - "LDAP_BASE_DN=dc=example,dc=com"
+      - "LDAP_USER_FILTER=(cn={})"
     working_dir: /app
 
   openldap:

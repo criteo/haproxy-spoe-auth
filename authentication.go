@@ -9,24 +9,33 @@ import (
 	"gopkg.in/ldap.v3"
 )
 
-func verifyCredentials(bindusername, bindpassword, username, password string) error {
-	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", "openldap", 389))
+// LDAPConnectionDetails represents the connection details
+type LDAPConnectionDetails struct {
+	URL        string
+	UserDN     string
+	Password   string
+	BaseDN     string
+	UserFilter string
+}
+
+func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password string) error {
+	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", ldapDetails.URL, 389))
 	if err != nil {
 		return err
 	}
 	defer l.Close()
 
 	// First bind with a read only user
-	err = l.Bind(bindusername, bindpassword)
+	err = l.Bind(ldapDetails.UserDN, ldapDetails.Password)
 	if err != nil {
 		return err
 	}
 
 	// Search for the given username
 	searchRequest := ldap.NewSearchRequest(
-		"dc=example,dc=com",
+		ldapDetails.BaseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 1, 0, false,
-		fmt.Sprintf("(cn=%s)", username),
+		strings.Replace(ldapDetails.UserFilter, "{}", username, 1),
 		[]string{"dn"},
 		nil,
 	)
@@ -66,12 +75,12 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 	cs := string(c)
 	s := strings.IndexByte(cs, ':')
 	if s < 0 {
-		return "", "", fmt.Errorf("Format for basic auth must be user:password")
+		return "", "", ErrBadAuthorizationValue
 	}
 	return cs[:s], cs[s+1:], nil
 }
 
-func handleAuthentication(message *spoe.Message, bindusername, bindpassword string) error {
+func handleAuthentication(message *spoe.Message, ldapDetails *LDAPConnectionDetails) error {
 	authorization, ok := message.Args["authorization"].(string)
 
 	if !ok {
@@ -84,7 +93,7 @@ func handleAuthentication(message *spoe.Message, bindusername, bindpassword stri
 		return err
 	}
 
-	err = verifyCredentials(bindusername, bindpassword, username, password)
+	err = verifyCredentials(ldapDetails, username, password)
 
 	if err != nil {
 		return err
