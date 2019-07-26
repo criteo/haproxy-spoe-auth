@@ -2,6 +2,40 @@
 
 This project is a an agent allowing HAProxy to forward authentication requests to a LDAP server.
 
+## Test it now!
+
+The agent is packaged in a docker-compose for you to quickly test it. You need to make sure
+Docker and docker-compose is installed on your machine. Also make sure that port 9080 is
+available.
+
+Now, add the two following lines to your /etc/hosts to fake the domains:
+
+    127.0.0.1       protected.example.com
+    127.0.0.1       unprotected.example.com
+
+And then run
+
+    docker-compose up -d
+
+Now you can test the following commands
+
+    # This a public domain
+    curl http://unprotected.example.com:9080/
+
+    # This domain is protected but no credentials are provided, it should return 401.
+    curl http://protected.example.com:9080/
+
+    # This domain is protected and credentials are provided, it should return 200.
+    curl -u "john:password" http://protected.example.com:9080/
+
+    # This domain is protected and credentials are provided but with a bad password, it should return 401.
+    curl -u "john:badpassword" http://protected.example.com:9080/
+
+Trying to visit the protected website in a browser will display a basic auth form that you should fill
+before being granted the rights to visit the page.
+
+The users available in the LDAP are stored in the file `resources/ldap/base.ldif`.
+
 ## Deployment
 
 The agent should be deployed on the same host than the HAProxy to give the best performances.
