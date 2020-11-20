@@ -81,10 +81,22 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 	return cs[:s], cs[s+1:], nil
 }
 
-func handleAuthentication(message *spoe.Message, ldapDetails *LDAPConnectionDetails) error {
-	authorization, ok := message.Args["authorization"].(string)
+func handleAuthentication(msg *spoe.Message, ldapDetails *LDAPConnectionDetails) error {
+	var authorization string
 
-	if !ok {
+	for msg.Args.Next() {
+		arg := msg.Args.Arg
+
+		if arg.Name == "authorization" {
+			var ok bool
+			authorization, ok = arg.Value.(string)
+			if !ok {
+				return ErrNoCredential
+			}
+		}
+	}
+
+	if authorization == "" {
 		return ErrNoCredential
 	}
 

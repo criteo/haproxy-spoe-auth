@@ -9,9 +9,10 @@ import (
 )
 
 func startAgent(interfaceAddr string, ldapDetails *LDAPConnectionDetails) {
-	agent := spoe.New(func(messages []spoe.Message) ([]spoe.Action, error) {
+	agent := spoe.New(func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
 		authenticated := false
-		for _, msg := range messages {
+		for messages.Next() {
+			msg := messages.Message
 			fmt.Println(msg)
 			if msg.Name != "try-auth" {
 				continue
