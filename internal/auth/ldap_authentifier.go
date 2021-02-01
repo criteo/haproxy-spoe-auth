@@ -19,6 +19,18 @@ type LDAPConnectionDetails struct {
 	UserFilter string
 }
 
+// LDAPAuthentifier is the LDAP implementation of the Authentifier interface
+type LDAPAuthentifier struct {
+	connectionDetails LDAPConnectionDetails
+}
+
+// NewLDAPAuthentifier create an instance of a LDAP authentifier
+func NewLDAPAuthentifier(options LDAPConnectionDetails) *LDAPAuthentifier {
+	return &LDAPAuthentifier{
+		connectionDetails: options,
+	}
+}
+
 func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password string) error {
 	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", ldapDetails.Hostname, ldapDetails.Port))
 	if err != nil {
@@ -81,8 +93,8 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 	return cs[:s], cs[s+1:], nil
 }
 
-// HandleAuthentication handle an authentication request coming from HAProxy
-func HandleAuthentication(msg *spoe.Message, ldapDetails *LDAPConnectionDetails) error {
+// Authenticate handle an authentication request coming from HAProxy
+func (la *LDAPAuthentifier) Authenticate(msg *spoe.Message) error {
 	var authorization string
 
 	for msg.Args.Next() {
@@ -107,7 +119,7 @@ func HandleAuthentication(msg *spoe.Message, ldapDetails *LDAPConnectionDetails)
 		return err
 	}
 
-	err = verifyCredentials(ldapDetails, username, password)
+	err = verifyCredentials(&la.connectionDetails, username, password)
 
 	if err != nil {
 		return err
