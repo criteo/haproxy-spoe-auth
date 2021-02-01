@@ -6,9 +6,11 @@ import (
 	"log"
 
 	spoe "github.com/criteo/haproxy-spoe-go"
+
+	"github.com/clems4ever/haproxy-spoe-auth/internal/auth"
 )
 
-func startAgent(interfaceAddr string, ldapDetails *LDAPConnectionDetails) {
+func startAgent(interfaceAddr string, ldapDetails *auth.LDAPConnectionDetails) {
 	agent := spoe.New(func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
 		authenticated := false
 		for messages.Next() {
@@ -18,7 +20,7 @@ func startAgent(interfaceAddr string, ldapDetails *LDAPConnectionDetails) {
 				continue
 			}
 
-			err := handleAuthentication(&msg, ldapDetails)
+			err := auth.HandleAuthentication(&msg, ldapDetails)
 
 			if err != nil {
 				fmt.Println(err)
@@ -74,7 +76,7 @@ func main() {
 		return
 	}
 
-	connectionDetails := LDAPConnectionDetails{
+	connectionDetails := auth.LDAPConnectionDetails{
 		Hostname:   *ldapURLPtr,
 		UserDN:     *ldapUserDNPtr,
 		Password:   *ldapPasswordPtr,

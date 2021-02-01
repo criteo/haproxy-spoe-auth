@@ -1,4 +1,4 @@
-FROM golang:1.12.7-stretch
+FROM golang:1.15
 
 # Using root user creates permission issues on the host, particularly with go.sum being regenerated within the container.
 RUN useradd -s /bin/bash -m -U dev

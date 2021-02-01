@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"encoding/base64"
@@ -81,7 +81,8 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 	return cs[:s], cs[s+1:], nil
 }
 
-func handleAuthentication(msg *spoe.Message, ldapDetails *LDAPConnectionDetails) error {
+// HandleAuthentication handle an authentication request coming from HAProxy
+func HandleAuthentication(msg *spoe.Message, ldapDetails *LDAPConnectionDetails) error {
 	var authorization string
 
 	for msg.Args.Next() {
