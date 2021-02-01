@@ -19,14 +19,14 @@ type LDAPConnectionDetails struct {
 	UserFilter string
 }
 
-// LDAPAuthentifier is the LDAP implementation of the Authentifier interface
-type LDAPAuthentifier struct {
+// LDAPAuthenticator is the LDAP implementation of the Authenticator interface
+type LDAPAuthenticator struct {
 	connectionDetails LDAPConnectionDetails
 }
 
-// NewLDAPAuthentifier create an instance of a LDAP authentifier
-func NewLDAPAuthentifier(options LDAPConnectionDetails) *LDAPAuthentifier {
-	return &LDAPAuthentifier{
+// NewLDAPAuthenticator create an instance of a LDAP authenticator
+func NewLDAPAuthenticator(options LDAPConnectionDetails) *LDAPAuthenticator {
+	return &LDAPAuthenticator{
 		connectionDetails: options,
 	}
 }
@@ -94,7 +94,7 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 }
 
 // Authenticate handle an authentication request coming from HAProxy
-func (la *LDAPAuthentifier) Authenticate(msg *spoe.Message) error {
+func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) error {
 	var authorization string
 
 	for msg.Args.Next() {

@@ -9,7 +9,7 @@ import (
 )
 
 // StartAgent start the agent
-func StartAgent(interfaceAddr string, authentifier auth.Authentifiter) {
+func StartAgent(interfaceAddr string, authentifier auth.Authenticator) {
 	agent := spoe.New(func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
 		authenticated := false
 		for messages.Next() {

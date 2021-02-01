@@ -39,7 +39,7 @@ func main() {
 		return
 	}
 
-	ldapAauthentifier := auth.NewLDAPAuthentifier(auth.LDAPConnectionDetails{
+	ldapAauthentifier := auth.NewLDAPAuthenticator(auth.LDAPConnectionDetails{
 		Hostname:   *ldapURLPtr,
 		UserDN:     *ldapUserDNPtr,
 		Password:   *ldapPasswordPtr,
