@@ -1,6 +1,6 @@
 #!/bin/bash
 
-go run cmd/haproxy-spoe-auth/main.go \
+go run cmd/haproxy-spoe-ldap/main.go \
     -addr ${ADDR} \
     -ldap-url ${LDAP_URL} \
     -ldap-userdn ${LDAP_USERDN} \
