@@ -1,48 +1,97 @@
 version: '3'
 services:
   haproxy:
-    image: haproxy:2.0.2
+    image: haproxy:2.3
     volumes:
       - ./resources/haproxy:/usr/local/etc/haproxy:ro
     ports:
-      - "9080:80"
+      - "9080:9080"
+    depends_on:
+      - spoe-ldap
+      - spoe-oidc
+      - dex
+    networks:
+      haproxy-spoe-net:
+        aliases:
+          - dex.example.com
 
   protected-backend:
     image: nginx
     volumes:
       - ./resources/protected:/usr/share/nginx/html
+      - ./resources/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      haproxy-spoe-net:
   unprotected-backend:
     image: nginx
     volumes:
       - ./resources/unprotected:/usr/share/nginx/html
-
+      - ./resources/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      haproxy-spoe-net:
   unauthorized-backend:
     image: nginx
     volumes:
       - ./resources/unauthorized:/usr/share/nginx/html
+      - ./resources/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      haproxy-spoe-net:
 
-  auth-backend:
+  spoe-ldap:
     build: .
     volumes:
       - .:/app
-    environment:
-      - "ADDR=:8081"
-      - "LDAP_URL=openldap"
-      - "LDAP_USERDN=cn=admin,dc=example,dc=com"
-      - "LDAP_PASSWORD=password"
-      - "LDAP_BASE_DN=dc=example,dc=com"
-      - "LDAP_USER_FILTER=(cn={})"
     working_dir: /app
+    command: go run cmd/haproxy-spoe-ldap/main.go -addr :8081 -ldap-url ldap -ldap-userdn cn=admin,dc=example,dc=com -ldap-password password -ldap-base-dn dc=example,dc=com -ldap-user-filter "(cn={login})"
+    depends_on:
+      - ldap
+    networks:
+      haproxy-spoe-net:
 
-  openldap:
-    image: clems4ever/openldap
-    environment:
-      - SLAPD_ORGANISATION=MyCompany
-      - SLAPD_DOMAIN=example.com
-      - SLAPD_PASSWORD=password
-      - SLAPD_CONFIG_PASSWORD=password
-      - SLAPD_ADDITIONAL_MODULES=memberof
-      - SLAPD_ADDITIONAL_SCHEMAS=openldap
-      - SLAPD_FORCE_RECONFIGURE=true
+  spoe-oidc:
+    build: .
     volumes:
-      - ./resources/ldap/base.ldif:/etc/ldap.dist/prepopulate/base.ldif
+      - .:/app
+    working_dir: /app
+    command: go run cmd/haproxy-spoe-oidc/main.go -addr :8081 -oidc-provider http://dex.example.com:9080/dex -client-id haproxy-auth -client-secret haproxy-auth-secret -redirect-url http://auth.example.com:9080/oauth2/callback -callback-addr :5000 -cookie-name authsession -cookie-domain example.com -signature-secret myunsecuresecret
+    ports:
+      - "5000:5000"
+    depends_on:
+      - dex
+    networks:
+      haproxy-spoe-net:
+
+  dex:
+    image: quay.io/dexidp/dex
+    command: serve /dex/config.yaml
+    volumes:
+      - ./resources/dex:/dex
+    ports:
+      - "5556:5556"
+    depends_on:
+      - ldap
+    networks:
+      haproxy-spoe-net:
+
+  ldap:
+    image: osixia/openldap:1.4.0
+    environment:
+      - LDAP_ORGANISATION=MyCompany
+      - LDAP_DOMAIN=example.com
+      - LDAP_ADMIN_PASSWORD=password
+      - LDAP_CONFIG_PASSWORD=password
+      - LDAP_ADDITIONAL_MODULES=memberof
+      - LDAP_ADDITIONAL_SCHEMAS=openldap
+      - LDAP_FORCE_RECONFIGURE=true
+    command:
+      - '--copy-service'
+      - '--loglevel'
+      - 'debug'
+    volumes:
+      - ./resources/ldap:/container/service/slapd/assets/config/bootstrap/ldif/custom
+    networks:
+      haproxy-spoe-net:
+
+
+networks:
+  haproxy-spoe-net:

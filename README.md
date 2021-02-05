@@ -12,8 +12,11 @@ available.
 
 Now, add the two following lines to your /etc/hosts to fake the domains:
 
-    127.0.0.1       protected.example.com
     127.0.0.1       unprotected.example.com
+    127.0.0.1       protected-ldap.example.com
+    127.0.0.1       protected-oidc.example.com
+    127.0.0.1       auth.example.com  # Used for the redirect callback ending the OAuth2 transaction
+    127.0.0.1       dex.example.com   # An OIDC server implementation
 
 And then run
 
@@ -98,7 +101,7 @@ And the configuration of the agent is as follows
         timeout idle       2m
         timeout processing 1s
 
-        use-backend auth-backend
+        use-backend spoe-ldap
 
     spoe-message try-auth
         args authorization=req.hdr(Authorization)

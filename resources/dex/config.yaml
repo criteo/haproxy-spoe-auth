@@ -1,0 +1,38 @@
+issuer: http://dex.example.com:9080/dex
+
+storage:
+  type: sqlite3
+  config:
+    file: /tmp/dex.db
+
+web:
+  http: 0.0.0.0:5556
+
+connectors:
+- type: ldap
+  id: ldap
+  name: LDAP
+  config:
+    host: ldap:389
+    insecureNoSSL: true
+
+    bindDN: cn=admin,dc=example,dc=com
+    bindPW: password
+
+    usernamePrompt: SSO Username
+
+    userSearch:
+      baseDN: dc=example,dc=com
+      
+      username: cn
+      idAttr: cn
+      emailAttr: mail
+      nameAttr: sn
+
+staticClients:
+- id: haproxy-auth
+  secret: haproxy-auth-secret
+  name: 'HAProxy Auth'
+  # Where the app will be running.
+  redirectURIs:
+  - 'http://auth.example.com:9080/oauth2/callback'

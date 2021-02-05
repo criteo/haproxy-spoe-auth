@@ -2,4 +2,4 @@
 
 set -x
 
-reflex -c /reflex.conf
+reflex -r '(\.go$|go\.mod)' -s -- $*

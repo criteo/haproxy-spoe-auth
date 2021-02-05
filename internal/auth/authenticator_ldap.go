@@ -48,7 +48,7 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 	searchRequest := ldap.NewSearchRequest(
 		ldapDetails.BaseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 1, 0, false,
-		strings.Replace(ldapDetails.UserFilter, "{}", username, 1),
+		strings.Replace(ldapDetails.UserFilter, "{login}", username, 1),
 		[]string{"dn"},
 		nil,
 	)
@@ -94,7 +94,7 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 }
 
 // Authenticate handle an authentication request coming from HAProxy
-func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) error {
+func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, error) {
 	var authorization string
 
 	for msg.Args.Next() {
@@ -104,26 +104,29 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) error {
 			var ok bool
 			authorization, ok = arg.Value.(string)
 			if !ok {
-				return ErrNoCredential
+				return nil, ErrNoCredential
 			}
 		}
 	}
 
 	if authorization == "" {
-		return ErrNoCredential
+		return []spoe.Action{NotAuthenticatedMessage}, nil
 	}
 
 	username, password, err := parseBasicAuth(authorization)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = verifyCredentials(&la.connectionDetails, username, password)
 
 	if err != nil {
-		return err
+		if err == ErrUserDoesntExist {
+			return []spoe.Action{NotAuthenticatedMessage}, nil
+		}
+		return nil, err
 	}
 
-	return nil
+	return []spoe.Action{AuthenticatedMessage}, nil
 }
