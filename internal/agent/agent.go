@@ -8,10 +8,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func init() {
+	logrus.SetLevel(logrus.DebugLevel)
+}
+
 // StartAgent start the agent
 func StartAgent(interfaceAddr string, authentifier auth.Authenticator) {
 	agent := spoe.New(func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
-		authenticated := false
+		var actions []spoe.Action
 		for messages.Next() {
 			msg := messages.Message
 			logrus.Debugf("New message with name %s received", msg.Name)
@@ -20,21 +24,16 @@ func StartAgent(interfaceAddr string, authentifier auth.Authenticator) {
 				continue
 			}
 
-			if err := authentifier.Authenticate(&msg); err != nil {
-				logrus.Errorf("Unable to authenticate request: %v", err)
+			a, err := authentifier.Authenticate(&msg)
+			if err != nil {
+				logrus.Errorf("Unable to treat request: %v", err)
 				continue
 			}
 
-			authenticated = true
+			actions = a
 		}
 
-		return []spoe.Action{
-			spoe.ActionSetVar{
-				Name:  "is_authenticated",
-				Scope: spoe.VarScopeSession,
-				Value: authenticated,
-			},
-		}, nil
+		return actions, nil
 	})
 
 	logrus.Infof("Agent starting and listening on %s", interfaceAddr)
