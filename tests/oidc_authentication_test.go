@@ -9,7 +9,7 @@ import (
 )
 
 func TestShouldAuthenticateSuccessfully(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
@@ -22,7 +22,7 @@ func TestShouldAuthenticateSuccessfully(t *testing.T) {
 }
 
 func TestShouldKeepUseLoggedIn(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
@@ -42,7 +42,7 @@ func TestShouldKeepUseLoggedIn(t *testing.T) {
 }
 
 func TestShouldFailAuthentication(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
