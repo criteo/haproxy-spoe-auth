@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -142,7 +141,19 @@ func (ewd *ExtendedWebDriver) Wait(ctx context.Context, condition selenium.Condi
 
 	select {
 	case <-ctx.Done():
-		return errors.New("waiting timeout reached")
+		url, err := ewd.CurrentURL()
+		if err != nil {
+			return fmt.Errorf("waiting timeout reached")
+		}
+		body, err := ewd.FindElement(selenium.ByTagName, "body")
+		if err != nil {
+			return fmt.Errorf("waiting timeout reached: url=%s", url)
+		}
+		content, err := body.Text()
+		if err != nil {
+			return fmt.Errorf("waiting timeout reached: url=%s", url)
+		}
+		return fmt.Errorf("waiting timeout reached: url=%s, body=%s", url, content)
 	case err := <-done:
 		return err
 	}
