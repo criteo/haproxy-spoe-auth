@@ -23,9 +23,14 @@ type OIDCAuthenticatorOptions struct {
 	ClientSecret string
 	RedirectURL  string
 
+	// This is used to sign the redirection URL
 	SignatureSecret string
-	CookieName      string
-	CookieDomain    string
+	// This is used to encrypt the ID Token returned by the IdP.
+	EncryptionSecret string
+	CookieName       string
+	CookieDomain     string
+	CookieSecure     bool
+	CookieTTLSeconds time.Duration
 
 	// The addr interface the callback will be exposed on.
 	CallbackAddr string
@@ -174,14 +179,26 @@ func extractArgs(msg *spoe.Message) (string, string, error) {
 
 // Authenticate treat an authentication request coming from HAProxy
 func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, error) {
-	originURL, cookie, err := extractArgs(msg)
+	originURL, cookieValue, err := extractArgs(msg)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to extract origin URL: %v", err)
 	}
 
 	// Verify the cookie to make sure the user is authenticated
-	if cookie == "test1" {
-		logrus.Debug("User is already authenticated")
+	if cookieValue != "" {
+		encryptor := NewAESEncryptor(oa.options.EncryptionSecret)
+		idToken, err := encryptor.Decrypt(cookieValue)
+		if err != nil {
+			logrus.Debug("Unable to decrypt session cookie")
+			return nil, err
+		}
+
+		// Parse and verify ID Token payload.
+		_, err = oa.verifier.Verify(context.Background(), idToken)
+		if err != nil {
+			return nil, err
+		}
+		logrus.Debug("User is authenticated")
 		return []spoe.Action{AuthenticatedMessage}, nil
 	}
 
@@ -205,6 +222,7 @@ func (oa *OIDCAuthenticator) handleOAuth2Logout() http.HandlerFunc {
 			Path:     "/",
 			Domain:   oa.options.CookieDomain,
 			HttpOnly: true,
+			Secure:   oa.options.CookieSecure,
 		}
 		http.SetCookie(w, &c)
 		fmt.Fprint(w, LogoutPage)
@@ -242,15 +260,6 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			return
 		}
 
-		// Extract custom claims
-		var claims struct {
-			Email    string `json:"email"`
-			Verified bool   `json:"email_verified"`
-		}
-		if err := idToken.Claims(&claims); err != nil {
-			// handle error
-		}
-
 		stateJSONPayload, err := base64.StdEncoding.DecodeString(stateB64Payload)
 		if err != nil {
 			logrus.Errorf("Unable to decode origin URL from state: %v", err)
@@ -277,15 +286,30 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			return
 		}
 
-		ttl := 60 * time.Second
-		expire := time.Now().Add(ttl)
+		encryptor := NewAESEncryptor(oa.options.EncryptionSecret)
+		encryptedIDToken, err := encryptor.Encrypt(rawIDToken)
+
+		if err != nil {
+			logrus.Errorf("Unable to encrypt the ID token: %v", err)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+		}
+
+		var expiry time.Time
+		if oa.options.CookieTTLSeconds == 0 {
+			// Align the expiry of the session to the expiry of the ID Token if the options has not been set.
+			expiry = idToken.Expiry
+		} else { // otherwise take the value in seconds provided as argument
+			expiry = time.Now().Add(oa.options.CookieTTLSeconds)
+		}
+
 		cookie := http.Cookie{
 			Name:     oa.options.CookieName,
-			Value:    "test1",
+			Value:    encryptedIDToken,
 			Path:     "/",
-			Expires:  expire,
+			Expires:  expiry,
 			Domain:   oa.options.CookieDomain,
 			HttpOnly: true,
+			Secure:   oa.options.CookieSecure,
 		}
 
 		http.SetCookie(w, &cookie)
