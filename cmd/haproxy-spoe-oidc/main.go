@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"time"
 
 	"github.com/clems4ever/haproxy-spoe-auth/internal/agent"
 	"github.com/clems4ever/haproxy-spoe-auth/internal/auth"
@@ -17,7 +18,10 @@ func main() {
 	callbackAddrPtr := flag.String("callback-addr", ":5000", "The interface to expose the callback on")
 	cookieNamePtr := flag.String("cookie-name", "authsession", "The name of the cookie holding the session")
 	cookieDomainPtr := flag.String("cookie-domain", "", "The domain the cookie holding the session must be set to")
-	signatureSecretPtr := flag.String("signature-secret", "", "The secret used to sign the redirection URL and the cookie")
+	cookieUnsecurePtr := flag.Bool("cookie-unsecure", true, "Set the secure flag of the session cookie")
+	cookieTTLSecondsPtr := flag.Int64("cookie-ttl-seconds", 0, "The TTL of the cookie in seconds. If not provided, the value from the ID token will be used.")
+	signatureSecretPtr := flag.String("signature-secret", "", "The secret used to sign the redirection URL")
+	encryptionSecretPtr := flag.String("encryption-secret", "", "The secret used to encrypt the ID token stored in the cookie.")
 
 	flag.Parse()
 
@@ -51,20 +55,38 @@ func main() {
 		return
 	}
 
+	if encryptionSecretPtr == nil || (encryptionSecretPtr != nil && *encryptionSecretPtr == "") {
+		flag.PrintDefaults()
+		return
+	}
+
 	if cookieDomainPtr == nil || (cookieDomainPtr != nil && *cookieDomainPtr == "") {
 		flag.PrintDefaults()
 		return
 	}
 
+	if cookieTTLSecondsPtr == nil {
+		flag.PrintDefaults()
+		return
+	}
+
+	if cookieUnsecurePtr == nil {
+		flag.PrintDefaults()
+		return
+	}
+
 	oidcAuthenticator := auth.NewOIDCAuthenticator(auth.OIDCAuthenticatorOptions{
-		ProviderURL:     *oidcProviderPtr,
-		ClientID:        *clientIDPtr,
-		ClientSecret:    *clientSecretPtr,
-		RedirectURL:     *redirectURLPtr,
-		CallbackAddr:    *callbackAddrPtr,
-		CookieName:      *cookieNamePtr,
-		CookieDomain:    *cookieDomainPtr,
-		SignatureSecret: *signatureSecretPtr,
+		ProviderURL:      *oidcProviderPtr,
+		ClientID:         *clientIDPtr,
+		ClientSecret:     *clientSecretPtr,
+		RedirectURL:      *redirectURLPtr,
+		CallbackAddr:     *callbackAddrPtr,
+		CookieName:       *cookieNamePtr,
+		CookieDomain:     *cookieDomainPtr,
+		CookieSecure:     !*cookieUnsecurePtr,
+		CookieTTLSeconds: time.Duration(*cookieTTLSecondsPtr) * time.Second,
+		SignatureSecret:  *signatureSecretPtr,
+		EncryptionSecret: *encryptionSecretPtr,
 	})
 
 	agent.StartAgent(*interfaceAddrPtr, oidcAuthenticator)
