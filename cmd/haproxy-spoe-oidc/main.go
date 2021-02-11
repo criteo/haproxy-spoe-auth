@@ -19,7 +19,7 @@ func main() {
 	cookieNamePtr := flag.String("cookie-name", "authsession", "The name of the cookie holding the session")
 	cookieDomainPtr := flag.String("cookie-domain", "", "The domain the cookie holding the session must be set to")
 	cookieUnsecurePtr := flag.Bool("cookie-unsecure", true, "Set the secure flag of the session cookie")
-	cookieTTLSecondsPtr := flag.Int64("cookie-ttl-seconds", 0, "The TTL of the cookie in seconds. If not provided, the value from the ID token will be used.")
+	cookieTTLSecondsPtr := flag.Int64("cookie-ttl-seconds", 3600, "The TTL of the cookie in seconds. 0 means the value from the ID token will be used.")
 	signatureSecretPtr := flag.String("signature-secret", "", "The secret used to sign the redirection URL")
 	encryptionSecretPtr := flag.String("encryption-secret", "", "The secret used to encrypt the ID token stored in the cookie.")
 

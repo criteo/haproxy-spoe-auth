@@ -1,5 +1,7 @@
 on: [push]
 
+name: Build & Test
+
 jobs:
   build_and_test:
     name: Build & Test
