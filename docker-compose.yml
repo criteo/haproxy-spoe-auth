@@ -63,7 +63,7 @@ services:
 
   dex:
     image: quay.io/dexidp/dex
-    command: serve /dex/config.yaml
+    command: dex serve /dex/config.yaml
     volumes:
       - ./resources/dex:/dex
     ports:
