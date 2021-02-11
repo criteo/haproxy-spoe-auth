@@ -43,7 +43,7 @@ Trying to visit the website protected by LDAP in a browser will display a basic 
 before being granted the rights to visit the page. With OpenID Connect, you should be redirected to the Dex
 authentication portal to complete the authentication process.
 
-The users available in the LDAP are stored in the file [resources/ldap/base.ldif](./resources/ldap/01-base.ldif).
+The users available in the LDAP are stored in the file [resources/ldap/01-base.ldif](./resources/ldap/01-base.ldif).
 
 ## Deployment
 
