@@ -43,13 +43,13 @@ Trying to visit the website protected by LDAP in a browser will display a basic 
 before being granted the rights to visit the page. With OpenID Connect, you should be redirected to the Dex
 authentication portal to complete the authentication process.
 
-The users available in the LDAP are stored in the file `resources/ldap/base.ldif`.
+The users available in the LDAP are stored in the file [resources/ldap/base.ldif](./resources/ldap/base.ldif).
 
 ## Deployment
 
 The agent should be deployed on the same host than the HAProxy to give the best performance.
 
-Then you can check the configuration of HAProxy and the SPOE agents available under [resources/haproxy](./resource/haproxy)
+Then you can check the configuration of HAProxy and the SPOE agents available under [resources/haproxy](./resources/haproxy)
 
 ## Architecture
 
