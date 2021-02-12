@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"sync"
 )
 
 // NonceLength the length of the nonce to use
@@ -17,6 +18,8 @@ var NonceLength = 12
 // GCM mode operation is used to ensure the encryption is authenticated.
 type AESEncryptor struct {
 	Key []byte
+
+	mutex sync.Mutex
 }
 
 // NewAESEncryptor create an instance of the AESEncryptor
@@ -31,6 +34,9 @@ func NewAESEncryptor(secret string) *AESEncryptor {
 
 // Encrypt a payload
 func (ae *AESEncryptor) Encrypt(message string) (string, error) {
+	ae.mutex.Lock()
+	defer ae.mutex.Unlock()
+
 	plaintext := []byte(message)
 
 	block, err := aes.NewCipher(ae.Key)
@@ -57,6 +63,9 @@ func (ae *AESEncryptor) Encrypt(message string) (string, error) {
 
 // Decrypt a payload
 func (ae *AESEncryptor) Decrypt(securemess string) (string, error) {
+	ae.mutex.Lock()
+	defer ae.mutex.Unlock()
+
 	ciphertextAndNonce, err := base64.StdEncoding.DecodeString(securemess)
 	if err != nil {
 		return "", fmt.Errorf("Unable to b64 decode secure message: %v", err)

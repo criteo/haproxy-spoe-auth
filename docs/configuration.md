@@ -2,9 +2,7 @@
 
 ## Performance: Filter Bypass
 
-The agent is written in Go allowing to set performance expectations pretty high. The target objective is
-clearly to remove any allocation on the hot path to make the agent as efficient as possible and completely
-avoid garbage collection.
+The agent is written in Go allowing to set performance expectations pretty high.
 
 Also, one must take care of the HAProxy configuration when using the agent. The example provided in this
 repository allows to split the domains into two categories: the public domains and the ones requiring authentication.

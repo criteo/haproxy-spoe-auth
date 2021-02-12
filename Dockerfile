@@ -5,6 +5,5 @@ RUN useradd -s /bin/bash -m -U dev
 USER dev
 
 RUN go get github.com/cespare/reflex
-COPY resources/entrypoint.sh /
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/scripts/entrypoint.sh"]

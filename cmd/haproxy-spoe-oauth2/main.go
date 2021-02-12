@@ -2,18 +2,20 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/clems4ever/haproxy-spoe-auth/internal/agent"
 	"github.com/clems4ever/haproxy-spoe-auth/internal/auth"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 )
 
 func main() {
 	interfaceAddrPtr := flag.String("addr", ":8081", "The port of the agent")
 
-	oidcProviderPtr := flag.String("oidc-provider", "", "The URL to the OIDC provider")
+	oauth2AuthorizationURLPtr := flag.String("authorization-url", "", "The URL to the OAuth2 authorization endpoint")
+	oauth2TokenURLPtr := flag.String("token-url", "", "The URL to the OAuth2 access_token endpoint")
 	clientIDPtr := flag.String("client-id", "", "The client ID for your application")
 	clientSecretPtr := flag.String("client-secret", "", "The client secret for your application")
 	redirectURLPtr := flag.String("redirect-url", "/oauth2/callback", "The redirect URL for the OAuth2 transaction")
@@ -23,68 +25,77 @@ func main() {
 	cookieUnsecurePtr := flag.Bool("cookie-unsecure", true, "Set the secure flag of the session cookie")
 	cookieTTLSecondsPtr := flag.Int64("cookie-ttl-seconds", 3600, "The TTL of the cookie in seconds. 0 means the value from the ID token will be used.")
 	signatureSecretPtr := flag.String("signature-secret", "", "The secret used to sign the redirection URL")
-	encryptionSecretPtr := flag.String("encryption-secret", "", "The secret used to encrypt the ID token stored in the cookie.")
 	scopesPtr := flag.String("scopes", "", "The scopes to request authorization for")
 
 	flag.Parse()
 
-	if oidcProviderPtr == nil || (oidcProviderPtr != nil && *oidcProviderPtr == "") {
+	if oauth2AuthorizationURLPtr == nil || (oauth2AuthorizationURLPtr != nil && *oauth2AuthorizationURLPtr == "") {
 		flag.PrintDefaults()
+		logrus.Fatal("No authorization URL provided")
+		return
+	}
+
+	if oauth2TokenURLPtr == nil || (oauth2TokenURLPtr != nil && *oauth2TokenURLPtr == "") {
+		flag.PrintDefaults()
+		logrus.Fatal("No token URL provided")
 		return
 	}
 
 	if clientIDPtr == nil || (clientIDPtr != nil && *clientIDPtr == "") {
 		flag.PrintDefaults()
+		logrus.Fatal("No client ID provided")
 		return
 	}
 
 	if clientSecretPtr == nil {
-		fmt.Println("Client secret not provided")
 		flag.PrintDefaults()
+		logrus.Fatal("No client secret provided")
 		return
 	}
 
 	if redirectURLPtr == nil || (redirectURLPtr != nil && *redirectURLPtr == "") {
 		flag.PrintDefaults()
+		logrus.Fatal("No redirect URL provided")
 		return
 	}
 
 	if callbackAddrPtr == nil || (callbackAddrPtr != nil && *callbackAddrPtr == "") {
 		flag.PrintDefaults()
+		logrus.Fatal("No callback address provided")
 		return
 	}
 
 	if signatureSecretPtr == nil || (signatureSecretPtr != nil && *signatureSecretPtr == "") {
 		flag.PrintDefaults()
-		return
-	}
-
-	if encryptionSecretPtr == nil || (encryptionSecretPtr != nil && *encryptionSecretPtr == "") {
-		flag.PrintDefaults()
+		logrus.Fatal("No signature secret provided")
 		return
 	}
 
 	if cookieDomainPtr == nil || (cookieDomainPtr != nil && *cookieDomainPtr == "") {
 		flag.PrintDefaults()
+		logrus.Fatal("No cookie top-domain provided")
 		return
 	}
 
 	if cookieTTLSecondsPtr == nil {
 		flag.PrintDefaults()
+		logrus.Fatal("No cookie TTL provided")
 		return
 	}
 
 	if cookieUnsecurePtr == nil {
 		flag.PrintDefaults()
+		logrus.Fatal("No cookie unsecure provided")
 		return
 	}
 
 	if scopesPtr == nil {
 		flag.PrintDefaults()
+		logrus.Fatal("No scopes provided")
 		return
 	}
 
-	scopesTmp := strings.Split(*scopesPtr, " ")
+	scopesTmp := strings.Split(*scopesPtr, ",")
 	scopes := []string{}
 	for _, s := range scopesTmp {
 		if s != "" {
@@ -92,19 +103,20 @@ func main() {
 		}
 	}
 
-	agent.StartAgent(*interfaceAddrPtr, auth.NewOIDCAuthenticator(auth.OIDCAuthenticatorOptions{
-		OAuth2AuthenticatorOptions: auth.OAuth2AuthenticatorOptions{
-			ClientID:         *clientIDPtr,
-			ClientSecret:     *clientSecretPtr,
-			RedirectURL:      *redirectURLPtr,
-			CallbackAddr:     *callbackAddrPtr,
-			CookieName:       *cookieNamePtr,
-			CookieDomain:     *cookieDomainPtr,
-			CookieSecure:     !*cookieUnsecurePtr,
-			CookieTTLSeconds: time.Duration(*cookieTTLSecondsPtr) * time.Second,
-			SignatureSecret:  *signatureSecretPtr,
+	agent.StartAgent(*interfaceAddrPtr, auth.NewOAuth2Authenticator(auth.OAuth2AuthenticatorOptions{
+		Endpoints: oauth2.Endpoint{
+			AuthURL:  *oauth2AuthorizationURLPtr,
+			TokenURL: *oauth2TokenURLPtr,
 		},
-		ProviderURL:      *oidcProviderPtr,
-		EncryptionSecret: *encryptionSecretPtr,
+		ClientID:         *clientIDPtr,
+		ClientSecret:     *clientSecretPtr,
+		RedirectURL:      *redirectURLPtr,
+		CallbackAddr:     *callbackAddrPtr,
+		CookieName:       *cookieNamePtr,
+		CookieDomain:     *cookieDomainPtr,
+		CookieSecure:     !*cookieUnsecurePtr,
+		CookieTTLSeconds: time.Duration(*cookieTTLSecondsPtr) * time.Second,
+		SignatureSecret:  *signatureSecretPtr,
+		Scopes:           scopes,
 	}))
 }

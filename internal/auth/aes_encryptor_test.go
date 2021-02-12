@@ -12,13 +12,9 @@ func TestShouldEncrypt(t *testing.T) {
 	ct, err := e.Encrypt("This is a payload to be encrypted")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "IpfBlsuyW66PWV0D75xOnnKyFtHs1//EywFLU0ekpFKx1mMqvRB4BJw37PaYVgeFkXKKFFmHMNRKwPs15A==", ct)
-}
+	assert.NotEmpty(t, ct)
 
-func TestShouldDecrypt(t *testing.T) {
-	e := NewAESEncryptor("mysecretkey")
-
-	decrypted, err := e.Decrypt("IpfBlsuyW66PWV0D75xOnnKyFtHs1//EywFLU0ekpFKx1mMqvRB4BJw37PaYVgeFkXKKFFmHMNRKwPs15A==")
+	decrypted, err := e.Decrypt(ct)
 	assert.NoError(t, err)
 	assert.Equal(t, "This is a payload to be encrypted", decrypted)
 }

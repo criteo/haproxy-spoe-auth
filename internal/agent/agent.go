@@ -30,7 +30,7 @@ func StartAgent(interfaceAddr string, authentifier auth.Authenticator) {
 				continue
 			}
 
-			actions = a
+			actions = append(actions, a...)
 		}
 
 		return actions, nil

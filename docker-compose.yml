@@ -41,10 +41,28 @@ services:
     build: .
     volumes:
       - .:/app
+      - ./resources/scripts:/scripts
     working_dir: /app
-    command: go run cmd/haproxy-spoe-ldap/main.go -addr :8081 -ldap-url ldap -ldap-userdn cn=admin,dc=example,dc=com -ldap-password password -ldap-base-dn dc=example,dc=com -ldap-user-filter "(cn={login})"
+    command: /scripts/run-ldap.sh
     depends_on:
       - ldap
+    networks:
+      haproxy-spoe-net:
+
+  spoe-oauth2:
+    build: .
+    volumes:
+      - .:/app
+      - ./resources/scripts:/scripts
+    working_dir: /app
+    command: /scripts/run-oauth2.sh
+    depends_on:
+      - dex
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    cap_add:
+      - SYS_PTRACE
     networks:
       haproxy-spoe-net:
 
@@ -52,12 +70,16 @@ services:
     build: .
     volumes:
       - .:/app
+      - ./resources/scripts:/scripts
     working_dir: /app
-    command: go run cmd/haproxy-spoe-oidc/main.go -addr :8081 -oidc-provider http://dex.example.com:9080/dex -client-id haproxy-auth -client-secret haproxy-auth-secret -redirect-url http://auth.example.com:9080/oauth2/callback -callback-addr :5000 -cookie-name authsession -cookie-domain example.com -cookie-unsecure -signature-secret myunsecuresecret -encryption-secret anotherunsecuresecret
-    ports:
-      - "5000:5000"
+    command: /scripts/run-oidc.sh
     depends_on:
       - dex
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    cap_add:
+      - SYS_PTRACE
     networks:
       haproxy-spoe-net:
 

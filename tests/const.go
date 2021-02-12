@@ -5,6 +5,8 @@ const (
 	ProtectedLdapURL = "http://protected-ldap.example.com:9080/"
 	// ProtectedOidcURL is the URL for the OIDC use case
 	ProtectedOidcURL = "http://protected-oidc.example.com:9080/"
+	// ProtectedOAuth2URL is the URL for the OAuth2 use case
+	ProtectedOAuth2URL = "http://protected-oauth2.example.com:9080/"
 	// UnprotectedURL is the URL for the unprotected app
 	UnprotectedURL = "http://unprotected.example.com:9080/"
 )

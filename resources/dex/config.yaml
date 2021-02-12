@@ -36,3 +36,5 @@ staticClients:
   # Where the app will be running.
   redirectURIs:
   - 'http://auth.example.com:9080/oauth2/callback'
+  - 'http://auth-oidc.example.com:9080/oauth2/callback'
+  - 'http://auth-oauth2.example.com:9080/oauth2/callback'

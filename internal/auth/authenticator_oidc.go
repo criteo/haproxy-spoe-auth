@@ -18,22 +18,13 @@ import (
 
 // OIDCAuthenticatorOptions options to customize to the OIDC authenticator
 type OIDCAuthenticatorOptions struct {
-	ProviderURL  string
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
+	OAuth2AuthenticatorOptions
 
-	// This is used to sign the redirection URL
-	SignatureSecret string
+	// The URL to the OIDC provider exposing the configuration
+	ProviderURL string
+
 	// This is used to encrypt the ID Token returned by the IdP.
 	EncryptionSecret string
-	CookieName       string
-	CookieDomain     string
-	CookieSecure     bool
-	CookieTTLSeconds time.Duration
-
-	// The addr interface the callback will be exposed on.
-	CallbackAddr string
 }
 
 // OIDCAuthenticator is the OIDC implementation of the Authenticator interface
@@ -43,14 +34,9 @@ type OIDCAuthenticator struct {
 	provider *oidc.Provider
 
 	signatureComputer *HmacSha256Computer
+	encryptor         *AESEncryptor
 
 	options OIDCAuthenticatorOptions
-}
-
-// State the content of the state
-type State struct {
-	URL       string `json:"url"`
-	Signature string `json:"sig"`
 }
 
 // NewOIDCAuthenticator create an instance of an OIDC authenticator
@@ -76,7 +62,7 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 		Endpoint: provider.Endpoint(),
 
 		// "openid" is a required scope for OpenID Connect flows.
-		Scopes: []string{oidc.ScopeOpenID, "profile", "email"},
+		Scopes: []string{oidc.ScopeOpenID, "email", "profile"},
 	}
 
 	tmpl, err := template.New("redirect_html").Parse(RedirectPage)
@@ -95,6 +81,7 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 		provider:          provider,
 		options:           options,
 		signatureComputer: NewHmacSha256Computer(options.SignatureSecret),
+		encryptor:         NewAESEncryptor(options.EncryptionSecret),
 	}
 
 	go func() {
@@ -106,100 +93,35 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 	return oa
 }
 
-func extractArgs(msg *spoe.Message) (string, string, error) {
-	var ssl *bool
-	var host, pathq *string
-	var cookie string
-
-	for msg.Args.Next() {
-		arg := msg.Args.Arg
-
-		if arg.Name == "arg_ssl" {
-			x, ok := arg.Value.(bool)
-			if !ok {
-				return "", "", fmt.Errorf("SSL is not a bool: %v", arg.Value)
-			}
-
-			ssl = new(bool)
-			*ssl = x
-			continue
-		}
-
-		if arg.Name == "arg_host" {
-			x, ok := arg.Value.(string)
-			if !ok {
-				return "", "", fmt.Errorf("Host is not a string: %v", arg.Value)
-			}
-
-			host = new(string)
-			*host = x
-			continue
-		}
-
-		if arg.Name == "arg_pathq" {
-			x, ok := arg.Value.(string)
-			if !ok {
-				return "", "", fmt.Errorf("Pathq is not a string: %v", arg.Value)
-			}
-
-			pathq = new(string)
-			*pathq = x
-			continue
-		}
-
-		if arg.Name == "arg_cookie" {
-			x, ok := arg.Value.(string)
-			if !ok {
-				continue
-			}
-
-			cookie = x
-			continue
-		}
+func (oa *OIDCAuthenticator) checkCookie(cookieValue string) error {
+	idToken, err := oa.encryptor.Decrypt(cookieValue)
+	if err != nil {
+		return fmt.Errorf("Unable to decrypt session cookie: %v", err)
 	}
 
-	if ssl == nil {
-		return "", "", fmt.Errorf("SSL arg not found")
+	// Parse and verify ID Token payload.
+	_, err = oa.verifier.Verify(context.Background(), idToken)
+	if err != nil {
+		return fmt.Errorf("Unable to verify ID Token: %v", err)
 	}
-
-	if host == nil {
-		return "", "", fmt.Errorf("Host arg not found")
-	}
-
-	if pathq == nil {
-		return "", "", fmt.Errorf("Pathq arg not found")
-	}
-
-	scheme := "http"
-	if *ssl {
-		scheme = "https"
-	}
-	return fmt.Sprintf("%s://%s%s", scheme, *host, *pathq), cookie, nil
+	return nil
 }
 
 // Authenticate treat an authentication request coming from HAProxy
 func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, error) {
-	originURL, cookieValue, err := extractArgs(msg)
+	originURL, cookieValue, err := extractOAuth2Args(msg)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to extract origin URL: %v", err)
 	}
 
 	// Verify the cookie to make sure the user is authenticated
 	if cookieValue != "" {
-		encryptor := NewAESEncryptor(oa.options.EncryptionSecret)
-		idToken, err := encryptor.Decrypt(cookieValue)
+		err := oa.checkCookie(cookieValue)
 		if err != nil {
-			logrus.Debug("Unable to decrypt session cookie")
-			return nil, err
+			logrus.Debugf("Unable to verify cookie: %v", err)
+		} else {
+			return []spoe.Action{AuthenticatedMessage}, nil
 		}
-
-		// Parse and verify ID Token payload.
-		_, err = oa.verifier.Verify(context.Background(), idToken)
-		if err != nil {
-			return nil, err
-		}
-		logrus.Debug("User is authenticated")
-		return []spoe.Action{AuthenticatedMessage}, nil
 	}
 
 	var state State
@@ -286,8 +208,7 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			return
 		}
 
-		encryptor := NewAESEncryptor(oa.options.EncryptionSecret)
-		encryptedIDToken, err := encryptor.Encrypt(rawIDToken)
+		encryptedIDToken, err := oa.encryptor.Encrypt(rawIDToken)
 
 		if err != nil {
 			logrus.Errorf("Unable to encrypt the ID token: %v", err)
@@ -321,30 +242,3 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 		}
 	}
 }
-
-// RedirectPage is a template used for the final redirection
-var RedirectPage = `
-<head>
-<title>Redirection in progress</title>
-  <meta http-equiv="refresh" content="0; URL={{.URL}}" />
-</head>
-<body>
-</body>`
-
-// ErrorPage is a template used in the case the final redirection cannot happen due to the bad signature of the original URL
-var ErrorPage = `
-<head>
-  <title>Error on redirection</title>
-</head>
-<body>
-You cannot be redirected to this untrusted url {{.URL}}.
-</body>`
-
-// LogoutPage is an HTML content stating the user has been logged out successfully
-var LogoutPage = `
-<head>
-<title>Logout</title>
-</head>
-<body>
-You have been logged out successfully.
-</body>`
