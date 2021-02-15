@@ -9,6 +9,7 @@ services:
     depends_on:
       - spoe-ldap
       - spoe-oidc
+      - spoe-oauth2
       - dex
     networks:
       haproxy-spoe-net:
