@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	spoe "github.com/criteo/haproxy-spoe-go"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/ldap.v3"
 )
 
@@ -110,6 +111,7 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, err
 	}
 
 	if authorization == "" {
+		logrus.Debug("Authorization header is empty")
 		return []spoe.Action{NotAuthenticatedMessage}, nil
 	}
 
@@ -123,10 +125,12 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, err
 
 	if err != nil {
 		if err == ErrUserDoesntExist {
+			logrus.Debugf("User %s does not exist", username)
 			return []spoe.Action{NotAuthenticatedMessage}, nil
 		}
 		return nil, err
 	}
 
+	logrus.Debug("User is authenticated")
 	return []spoe.Action{AuthenticatedMessage}, nil
 }
