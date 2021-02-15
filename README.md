@@ -15,6 +15,7 @@ Now, add the two following lines to your /etc/hosts to fake the domains:
     127.0.0.1       unprotected.example.com
     127.0.0.1       protected-ldap.example.com
     127.0.0.1       protected-oidc.example.com
+    127.0.0.1       protected-oauth2.example.com
     127.0.0.1       auth.example.com  # Used for the redirect callback ending the OAuth2 transaction
     127.0.0.1       dex.example.com   # An OIDC server implementation
 

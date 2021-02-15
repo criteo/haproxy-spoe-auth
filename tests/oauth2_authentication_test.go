@@ -13,6 +13,9 @@ func TestOAuth2ShouldAuthenticateSuccessfully(t *testing.T) {
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(LogoutOAuht2URL)
+
 		wd.Get(ProtectedOAuth2URL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
 		wd.WaitUntilURLIs(ctx, t, "http://protected-oauth2.example.com:9080/")
@@ -26,6 +29,9 @@ func TestOAuth2ShouldKeepUseLoggedIn(t *testing.T) {
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(LogoutOAuht2URL)
+
 		wd.Get(ProtectedOAuth2URL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
 		wd.WaitUntilURLIs(ctx, t, ProtectedOAuth2URL)
@@ -46,6 +52,9 @@ func TestOAuth2ShouldFailAuthentication(t *testing.T) {
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(LogoutOAuht2URL)
+
 		wd.Get(ProtectedOAuth2URL)
 		wd.WaitUntilRedirectedToDexLogin(ctx, t)
 		wd.WaitUntilDexCredentialsFieldsAreDetetected(ctx, t)

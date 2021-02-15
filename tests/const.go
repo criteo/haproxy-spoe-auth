@@ -9,4 +9,9 @@ const (
 	ProtectedOAuth2URL = "http://protected-oauth2.example.com:9080/"
 	// UnprotectedURL is the URL for the unprotected app
 	UnprotectedURL = "http://unprotected.example.com:9080/"
+
+	// LogoutOidcURL is the URL used to log out the user
+	LogoutOidcURL = "http://auth-oidc.example.com:9080/"
+	// LogoutOAuht2URL is the URL used to log out the user
+	LogoutOAuht2URL = "http://auth-oauth2.example.com:9080/"
 )

@@ -13,9 +13,12 @@ func TestShouldAuthenticateSuccessfully(t *testing.T) {
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(LogoutOAuht2URL)
+
 		wd.Get(ProtectedOidcURL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
-		wd.WaitUntilURLIs(ctx, t, "http://protected-oidc.example.com:9080/")
+		wd.WaitUntilURLIs(ctx, t, ProtectedOidcURL)
 		wd.WaitUntilBodyContains(ctx, t, "PROTECTED!")
 		return nil
 	}))
@@ -26,6 +29,9 @@ func TestShouldKeepUseLoggedIn(t *testing.T) {
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(LogoutOAuht2URL)
+
 		wd.Get(ProtectedOidcURL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
 		wd.WaitUntilURLIs(ctx, t, ProtectedOidcURL)
@@ -46,6 +52,9 @@ func TestShouldFailAuthentication(t *testing.T) {
 	defer cancel()
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(LogoutOAuht2URL)
+
 		wd.Get(ProtectedOidcURL)
 		wd.WaitUntilRedirectedToDexLogin(ctx, t)
 		wd.WaitUntilDexCredentialsFieldsAreDetetected(ctx, t)
