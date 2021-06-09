@@ -1,4 +1,4 @@
-module github.com/clems4ever/haproxy-spoe-auth
+module github.com/criteo/haproxy-spoe-auth
 
 go 1.15
 
