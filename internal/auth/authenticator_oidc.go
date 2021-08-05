@@ -27,6 +27,33 @@ type OIDCAuthenticatorOptions struct {
 	EncryptionSecret string
 }
 
+// OAuth2AuthenticatorOptions options to customize to the OAuth2 authenticator
+type OAuth2AuthenticatorOptions struct {
+	Endpoints    oauth2.Endpoint
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+
+	// This is used to sign the redirection URL
+	SignatureSecret string
+
+	CookieName   string
+	CookieDomain string
+	CookieSecure bool
+	CookieTTL    time.Duration
+
+	Scopes []string
+
+	// The addr interface the callback will be exposed on.
+	CallbackAddr string
+}
+
+// State the content of the state
+type State struct {
+	URL       string `json:"url"`
+	Signature string `json:"sig"`
+}
+
 // OIDCAuthenticator is the OIDC implementation of the Authenticator interface
 type OIDCAuthenticator struct {
 	config   oauth2.Config
@@ -65,12 +92,12 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 		Scopes: []string{oidc.ScopeOpenID, "email", "profile"},
 	}
 
-	tmpl, err := template.New("redirect_html").Parse(RedirectPage)
+	tmpl, err := template.New("redirect_html").Parse(RedirectPageTemplate)
 	if err != nil {
 		logrus.Fatalf("Unable to read the html page for redirecting")
 	}
 
-	errorTmpl, err := template.New("error").Parse(ErrorPage)
+	errorTmpl, err := template.New("error").Parse(ErrorPageTemplate)
 	if err != nil {
 		logrus.Fatalf("Unable to read the html page for redirecting")
 	}
@@ -107,11 +134,82 @@ func (oa *OIDCAuthenticator) checkCookie(cookieValue string) error {
 	return nil
 }
 
+func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
+	var ssl *bool
+	var host, pathq *string
+	var cookie string
+
+	for msg.Args.Next() {
+		arg := msg.Args.Arg
+
+		if arg.Name == "arg_ssl" {
+			x, ok := arg.Value.(bool)
+			if !ok {
+				return "", "", fmt.Errorf("SSL is not a bool: %v", arg.Value)
+			}
+
+			ssl = new(bool)
+			*ssl = x
+			continue
+		}
+
+		if arg.Name == "arg_host" {
+			x, ok := arg.Value.(string)
+			if !ok {
+				return "", "", fmt.Errorf("host is not a string: %v", arg.Value)
+			}
+
+			host = new(string)
+			*host = x
+			continue
+		}
+
+		if arg.Name == "arg_pathq" {
+			x, ok := arg.Value.(string)
+			if !ok {
+				return "", "", fmt.Errorf("pathq is not a string: %v", arg.Value)
+			}
+
+			pathq = new(string)
+			*pathq = x
+			continue
+		}
+
+		if arg.Name == "arg_cookie" {
+			x, ok := arg.Value.(string)
+			if !ok {
+				continue
+			}
+
+			cookie = x
+			continue
+		}
+	}
+
+	if ssl == nil {
+		return "", "", ErrSSLArgNotFound
+	}
+
+	if host == nil {
+		return "", "", ErrHostArgNotFound
+	}
+
+	if pathq == nil {
+		return "", "", ErrPathqArgNotFound
+	}
+
+	scheme := "http"
+	if *ssl {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s%s", scheme, *host, *pathq), cookie, nil
+}
+
 // Authenticate treat an authentication request coming from HAProxy
-func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, error) {
+func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Action, error) {
 	originURL, cookieValue, err := extractOAuth2Args(msg)
 	if err != nil {
-		return nil, fmt.Errorf("unable to extract origin URL: %v", err)
+		return false, nil, fmt.Errorf("unable to extract origin URL: %v", err)
 	}
 
 	// Verify the cookie to make sure the user is authenticated
@@ -120,7 +218,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, err
 		if err != nil {
 			logrus.Debugf("Unable to verify cookie: %v", err)
 		} else {
-			return []spoe.Action{AuthenticatedMessage}, nil
+			return true, nil, nil
 		}
 	}
 
@@ -130,11 +228,11 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, err
 
 	stateBytes, err := json.Marshal(state)
 	if err != nil {
-		return []spoe.Action{NotAuthenticatedMessage}, fmt.Errorf("unable to marshal the state")
+		return false, nil, fmt.Errorf("unable to marshal the state")
 	}
 
 	authorizationURL := oa.config.AuthCodeURL(base64.StdEncoding.EncodeToString(stateBytes))
-	return []spoe.Action{NotAuthenticatedMessage, BuildRedirectURLMessage(authorizationURL)}, nil
+	return false, []spoe.Action{BuildRedirectURLMessage(authorizationURL)}, nil
 }
 
 func (oa *OIDCAuthenticator) handleOAuth2Logout() http.HandlerFunc {
@@ -147,7 +245,7 @@ func (oa *OIDCAuthenticator) handleOAuth2Logout() http.HandlerFunc {
 			Secure:   oa.options.CookieSecure,
 		}
 		http.SetCookie(w, &c)
-		fmt.Fprint(w, LogoutPage)
+		fmt.Fprint(w, LogoutPageTemplate)
 	}
 }
 

@@ -7,9 +7,7 @@ services:
     ports:
       - "9080:9080"
     depends_on:
-      - spoe-ldap
-      - spoe-oidc
-      - spoe-oauth2
+      - spoe
       - dex
     networks:
       haproxy-spoe-net:
@@ -38,49 +36,22 @@ services:
     networks:
       haproxy-spoe-net:
 
-  spoe-ldap:
+  spoe:
     build: .
     volumes:
       - .:/app
       - ./resources/scripts:/scripts
+      - ./resources/configuration:/configuration
     working_dir: /app
-    command: /scripts/run-ldap.sh
+    command: /scripts/run.sh
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    cap_add:
+      - SYS_PTRACE
     depends_on:
       - ldap
-    networks:
-      haproxy-spoe-net:
-
-  spoe-oauth2:
-    build: .
-    volumes:
-      - .:/app
-      - ./resources/scripts:/scripts
-    working_dir: /app
-    command: /scripts/run-oauth2.sh
-    depends_on:
       - dex
-    security_opt:
-      - seccomp:unconfined
-      - apparmor:unconfined
-    cap_add:
-      - SYS_PTRACE
-    networks:
-      haproxy-spoe-net:
-
-  spoe-oidc:
-    build: .
-    volumes:
-      - .:/app
-      - ./resources/scripts:/scripts
-    working_dir: /app
-    command: /scripts/run-oidc.sh
-    depends_on:
-      - dex
-    security_opt:
-      - seccomp:unconfined
-      - apparmor:unconfined
-    cap_add:
-      - SYS_PTRACE
     networks:
       haproxy-spoe-net:
 
@@ -88,7 +59,7 @@ services:
     image: quay.io/dexidp/dex
     command: dex serve /dex/config.yaml
     volumes:
-      - ./resources/dex:/dex
+      - ./resources/dex/config.yaml:/dex/config.yaml
     ports:
       - "5556:5556"
     depends_on:
