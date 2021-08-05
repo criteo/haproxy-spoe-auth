@@ -96,13 +96,13 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 func (oa *OIDCAuthenticator) checkCookie(cookieValue string) error {
 	idToken, err := oa.encryptor.Decrypt(cookieValue)
 	if err != nil {
-		return fmt.Errorf("Unable to decrypt session cookie: %v", err)
+		return fmt.Errorf("unable to decrypt session cookie: %v", err)
 	}
 
 	// Parse and verify ID Token payload.
 	_, err = oa.verifier.Verify(context.Background(), idToken)
 	if err != nil {
-		return fmt.Errorf("Unable to verify ID Token: %v", err)
+		return fmt.Errorf("unable to verify ID Token: %v", err)
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func (oa *OIDCAuthenticator) checkCookie(cookieValue string) error {
 func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, error) {
 	originURL, cookieValue, err := extractOAuth2Args(msg)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to extract origin URL: %v", err)
+		return nil, fmt.Errorf("unable to extract origin URL: %v", err)
 	}
 
 	// Verify the cookie to make sure the user is authenticated
@@ -130,7 +130,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, err
 
 	stateBytes, err := json.Marshal(state)
 	if err != nil {
-		return []spoe.Action{NotAuthenticatedMessage}, fmt.Errorf("Unable to marshal the state")
+		return []spoe.Action{NotAuthenticatedMessage}, fmt.Errorf("unable to marshal the state")
 	}
 
 	authorizationURL := oa.config.AuthCodeURL(base64.StdEncoding.EncodeToString(stateBytes))
@@ -216,11 +216,11 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 		}
 
 		var expiry time.Time
-		if oa.options.CookieTTLSeconds == 0 {
+		if oa.options.CookieTTL == 0 {
 			// Align the expiry of the session to the expiry of the ID Token if the options has not been set.
 			expiry = idToken.Expiry
 		} else { // otherwise take the value in seconds provided as argument
-			expiry = time.Now().Add(oa.options.CookieTTLSeconds)
+			expiry = time.Now().Add(oa.options.CookieTTL)
 		}
 
 		cookie := http.Cookie{
