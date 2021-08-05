@@ -15,15 +15,12 @@ connectors:
   config:
     host: ldap:389
     insecureNoSSL: true
-
     bindDN: cn=admin,dc=example,dc=com
     bindPW: password
-
     usernamePrompt: SSO Username
 
     userSearch:
       baseDN: dc=example,dc=com
-      
       username: cn
       idAttr: cn
       emailAttr: mail
@@ -36,5 +33,3 @@ staticClients:
   # Where the app will be running.
   redirectURIs:
   - 'http://auth.example.com:9080/oauth2/callback'
-  - 'http://auth-oidc.example.com:9080/oauth2/callback'
-  - 'http://auth-oauth2.example.com:9080/oauth2/callback'

@@ -1,6 +1,8 @@
 package auth
 
-import "errors"
+import (
+	"errors"
+)
 
 // ErrNoCredential error thrown when no credentials are provided with the request
 var ErrNoCredential = errors.New("no credentials provided")
@@ -16,3 +18,12 @@ var ErrUserDoesntExist = errors.New("user does not exist")
 
 // ErrTooManyUsersMatching error thrown when too many users are retrieved upon LDAP search
 var ErrTooManyUsersMatching = errors.New("there are too many user matching this request")
+
+// ErrSSLArgNotFound error thrown when the ssl arg has not been provided by HAProxy
+var ErrSSLArgNotFound = errors.New("SSL arg not found")
+
+// ErrSSLArgNotFound error thrown when the host arg has not been provided by HAProxy
+var ErrHostArgNotFound = errors.New("host arg not found")
+
+// ErrSSLArgNotFound error thrown when the pathq arg has not been provided by HAProxy
+var ErrPathqArgNotFound = errors.New("pathq arg not found")

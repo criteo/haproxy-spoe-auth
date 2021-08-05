@@ -12,10 +12,9 @@ available.
 
 Now, add the two following lines to your /etc/hosts to fake the domains:
 
-    127.0.0.1       unprotected.example.com
-    127.0.0.1       protected-ldap.example.com
-    127.0.0.1       protected-oidc.example.com
-    127.0.0.1       protected-oauth2.example.com
+    127.0.0.1       public.example.com
+    127.0.0.1       app1.example.com
+    127.0.0.1       app2.example.com
     127.0.0.1       auth.example.com  # Used for the redirect callback ending the OAuth2 transaction
     127.0.0.1       dex.example.com   # An OIDC server implementation
 
@@ -26,19 +25,19 @@ And then run
 Now you can test the following commands
 
     # This a public domain
-    curl http://unprotected.example.com:9080/
+    curl http://public.example.com:9080/
 
     # This domain is protected but no credentials are provided, it should return 401.
-    curl http://protected-ldap.example.com:9080/
+    curl http://app1.example.com:9080/
 
     # This domain is protected and credentials are provided, it should return 200.
-    curl -u "john:password" http://protected-ldap.example.com:9080/
+    curl -u "john:password" http://app1.example.com:9080/
 
     # This domain is protected and credentials are provided but with a bad password, it should return 401.
-    curl -u "john:badpassword" http://protected-ldap.example.com:9080/
+    curl -u "john:badpassword" http://app1.example.com:9080/
 
     # This domain is protected by OpenID Connect and credentials are provided, it should return 200.
-    Visit http://protected-oidc.example.com:9080/ in a browser
+    Visit http://app2.example.com:9080/ in a browser
 
 Trying to visit the website protected by LDAP in a browser will display a basic auth form that you should fill
 before being granted the rights to visit the page. With OpenID Connect, you should be redirected to the Dex

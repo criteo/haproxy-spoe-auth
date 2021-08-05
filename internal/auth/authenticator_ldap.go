@@ -95,7 +95,7 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 }
 
 // Authenticate handle an authentication request coming from HAProxy
-func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, error) {
+func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Action, error) {
 	var authorization string
 
 	for msg.Args.Next() {
@@ -105,20 +105,20 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, err
 			var ok bool
 			authorization, ok = arg.Value.(string)
 			if !ok {
-				return nil, ErrNoCredential
+				return false, nil, ErrNoCredential
 			}
 		}
 	}
 
 	if authorization == "" {
 		logrus.Debug("Authorization header is empty")
-		return []spoe.Action{NotAuthenticatedMessage}, nil
+		return false, nil, nil
 	}
 
 	username, password, err := parseBasicAuth(authorization)
 
 	if err != nil {
-		return nil, err
+		return false, nil, fmt.Errorf("unable to parse basic auth header")
 	}
 
 	err = verifyCredentials(&la.connectionDetails, username, password)
@@ -126,11 +126,11 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, err
 	if err != nil {
 		if err == ErrUserDoesntExist {
 			logrus.Debugf("User %s does not exist", username)
-			return []spoe.Action{NotAuthenticatedMessage}, nil
+			return false, nil, nil
 		}
-		return nil, err
+		return false, nil, err
 	}
 
 	logrus.Debug("User is authenticated")
-	return []spoe.Action{AuthenticatedMessage}, nil
+	return true, nil, nil
 }

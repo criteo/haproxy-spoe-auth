@@ -1,0 +1,28 @@
+server:
+  addr: :8081
+  log_level: debug
+
+ldap:
+  hostname: ldap
+  port: 389
+  user_dn: cn=admin,dc=example,dc=com
+  password: password
+  base_dn: dc=example,dc=com
+  user_filter: "(cn={login})"
+
+oidc:
+  provider_url: http://dex.example.com:9080/dex
+  client_id: haproxy-auth
+  client_secret: haproxy-auth-secret
+  redirect_url: http://auth.example.com:9080/oauth2/callback
+  callback_addr: ":5000"
+  cookie_name: authsession
+  cookie_domain: example.com
+  cookie_secure: false
+  cookie_ttl_seconds: 3600
+  signature_secret: myunsecuresecret
+  encryption_secret: anotherunsecuresecret
+  scopes:
+    - openid
+    - email
+    - profile

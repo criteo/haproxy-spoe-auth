@@ -3,34 +3,54 @@ package agent
 import (
 	"log"
 
-	"github.com/clems4ever/haproxy-spoe-auth/internal/auth"
+	"github.com/criteo/haproxy-spoe-auth/internal/auth"
 	spoe "github.com/criteo/haproxy-spoe-go"
 	"github.com/sirupsen/logrus"
 )
 
-func init() {
-	logrus.SetLevel(logrus.DebugLevel)
+// NotAuthenticatedMessage SPOE response stating the user is not authenticated
+var NotAuthenticatedMessage = spoe.ActionSetVar{
+	Name:  "is_authenticated",
+	Scope: spoe.VarScopeSession,
+	Value: false,
+}
+
+// AuthenticatedMessage SPOE response stating the user is authenticated
+var AuthenticatedMessage = spoe.ActionSetVar{
+	Name:  "is_authenticated",
+	Scope: spoe.VarScopeSession,
+	Value: true,
 }
 
 // StartAgent start the agent
-func StartAgent(interfaceAddr string, authentifier auth.Authenticator) {
+func StartAgent(interfaceAddr string, authentifiers map[string]auth.Authenticator) {
 	agent := spoe.New(func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
 		var actions []spoe.Action
+
+		var authenticated bool = false
 		for messages.Next() {
 			msg := messages.Message
 			logrus.Debugf("New message with name %s received", msg.Name)
 
-			if msg.Name != "try-auth" {
-				continue
-			}
+			authentifier, ok := authentifiers[msg.Name]
+			if ok {
+				isAuthenticated, replyActions, err := authentifier.Authenticate(&msg)
+				if err != nil {
+					logrus.Errorf("Unable to authenticate user: %v", err)
+					continue
+				}
+				actions = append(actions, replyActions...)
 
-			a, err := authentifier.Authenticate(&msg)
-			if err != nil {
-				logrus.Errorf("Unable to treat request: %v", err)
-				continue
+				if isAuthenticated {
+					authenticated = true
+				}
 			}
+		}
 
-			actions = append(actions, a...)
+		if authenticated {
+			actions = append(actions, AuthenticatedMessage)
+		} else {
+			actions = append(actions, NotAuthenticatedMessage)
 		}
 
 		return actions, nil
