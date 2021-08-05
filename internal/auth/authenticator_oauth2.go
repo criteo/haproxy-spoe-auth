@@ -25,10 +25,10 @@ type OAuth2AuthenticatorOptions struct {
 	// This is used to sign the redirection URL
 	SignatureSecret string
 
-	CookieName       string
-	CookieDomain     string
-	CookieSecure     bool
-	CookieTTLSeconds time.Duration
+	CookieName   string
+	CookieDomain string
+	CookieSecure bool
+	CookieTTL    time.Duration
 
 	Scopes []string
 
@@ -134,7 +134,7 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 		if arg.Name == "arg_host" {
 			x, ok := arg.Value.(string)
 			if !ok {
-				return "", "", fmt.Errorf("Host is not a string: %v", arg.Value)
+				return "", "", fmt.Errorf("host is not a string: %v", arg.Value)
 			}
 
 			host = new(string)
@@ -145,7 +145,7 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 		if arg.Name == "arg_pathq" {
 			x, ok := arg.Value.(string)
 			if !ok {
-				return "", "", fmt.Errorf("Pathq is not a string: %v", arg.Value)
+				return "", "", fmt.Errorf("pathq is not a string: %v", arg.Value)
 			}
 
 			pathq = new(string)
@@ -169,11 +169,11 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 	}
 
 	if host == nil {
-		return "", "", fmt.Errorf("Host arg not found")
+		return "", "", fmt.Errorf("host arg not found")
 	}
 
 	if pathq == nil {
-		return "", "", fmt.Errorf("Pathq arg not found")
+		return "", "", fmt.Errorf("pathq arg not found")
 	}
 
 	scheme := "http"
@@ -187,7 +187,7 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 func (oa *OAuth2Authenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, error) {
 	originURL, cookieValue, err := extractOAuth2Args(msg)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to extract origin URL: %v", err)
+		return nil, fmt.Errorf("unable to extract origin URL: %v", err)
 	}
 
 	// Verify the cookie to make sure the user is authenticated
@@ -206,7 +206,7 @@ func (oa *OAuth2Authenticator) Authenticate(msg *spoe.Message) ([]spoe.Action, e
 
 	stateBytes, err := json.Marshal(state)
 	if err != nil {
-		return []spoe.Action{NotAuthenticatedMessage}, fmt.Errorf("Unable to marshal the state")
+		return []spoe.Action{NotAuthenticatedMessage}, fmt.Errorf("unable to marshal the state")
 	}
 
 	authorizationURL := oa.config.AuthCodeURL(base64.StdEncoding.EncodeToString(stateBytes))
@@ -274,7 +274,7 @@ func (oa *OAuth2Authenticator) handleOAuth2Callback(tmpl *template.Template, err
 		sig := hasher.ProduceSignature(data)
 		dataWithSig := data + sig
 
-		var expiry = time.Now().Add(oa.options.CookieTTLSeconds)
+		var expiry = time.Now().Add(oa.options.CookieTTL)
 
 		cookie := http.Cookie{
 			Name:     oa.options.CookieName,

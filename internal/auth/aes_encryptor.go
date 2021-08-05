@@ -41,18 +41,18 @@ func (ae *AESEncryptor) Encrypt(message string) (string, error) {
 
 	block, err := aes.NewCipher(ae.Key)
 	if err != nil {
-		return "", fmt.Errorf("Unable to create cipher: %v", err)
+		return "", fmt.Errorf("unable to create cipher: %v", err)
 	}
 
 	// Never use more than 2^32 random nonces with a given key because of the risk of a repeat.
 	nonce := make([]byte, NonceLength)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", fmt.Errorf("Unable to generate nonce: %v", err)
+		return "", fmt.Errorf("unable to generate nonce: %v", err)
 	}
 
 	aesgcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("Unable to create GCM block cipher")
+		return "", fmt.Errorf("unable to create GCM block cipher")
 	}
 
 	ciphertext := aesgcm.Seal(nil, nonce, plaintext, nil)
@@ -68,7 +68,7 @@ func (ae *AESEncryptor) Decrypt(securemess string) (string, error) {
 
 	ciphertextAndNonce, err := base64.StdEncoding.DecodeString(securemess)
 	if err != nil {
-		return "", fmt.Errorf("Unable to b64 decode secure message: %v", err)
+		return "", fmt.Errorf("unable to b64 decode secure message: %v", err)
 	}
 
 	block, err := aes.NewCipher(ae.Key)
