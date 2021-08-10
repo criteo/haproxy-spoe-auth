@@ -1,5 +1,3 @@
-// +build integration
-
 package tests
 
 import (
@@ -10,7 +8,7 @@ import (
 )
 
 func TestShouldAccessPublicPageWithoutCredentials(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://unprotected.example.com:9080", nil)
+	req, err := http.NewRequest("GET", UnprotectedURL, nil)
 	assert.NoError(t, err)
 
 	res, err := http.DefaultClient.Do(req)

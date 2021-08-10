@@ -1,17 +1,5 @@
 # OpenID Connect Authentication
 
-## Building & running
-
-    go get ./...
-    go build -o haproxy-spoe-oidc cmd/haproxy-spoe-oidc/main.go
-
-    # Check the usage of the command to configure against your AD
-    ./haproxy-spoe-oidc --help
-
-    # For example
-    ./haproxy-spoe-oidc -addr :8081 -oidc-provider http://dex.example.com:9080/dex -client-id haproxy-auth -client-secret haproxy-auth-secret -redirect-url http://auth.example.com:9080/oauth2/callback -callback-addr :5000 -cookie-name authsession -cookie-domain example.com -cookie-unsecure -signature-secret myunsecuresecret -encryption-secret anotherunsecuresecret
-
-
 ## Architecture
 
 The SPOE agent receives authentication request messages when a request is made on the protected endpoint. Either this

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/tebeka/selenium"
 	"github.com/tebeka/selenium/chrome"
@@ -44,6 +45,10 @@ func StartWebDriverWithProxy(proxy string, port int) (*WebDriverSession, error) 
 		driverPath = "/usr/bin/chromedriver"
 	}
 
+	if _, err := os.Stat(driverPath); os.IsNotExist(err) {
+		logrus.Panicf("Driver %s does not exist, make sure you installed chrome driver", driverPath)
+	}
+
 	service, err := selenium.NewChromeDriverService(driverPath, port)
 
 	if err != nil {
@@ -53,6 +58,10 @@ func StartWebDriverWithProxy(proxy string, port int) (*WebDriverSession, error) 
 	browserPath := os.Getenv("BROWSER_PATH")
 	if browserPath == "" {
 		browserPath = "/usr/bin/chromium-browser"
+	}
+
+	if _, err := os.Stat(browserPath); os.IsNotExist(err) {
+		logrus.Panicf("Browser %s does not exist, set BROWSER_PATH environment variable to use your own browser or install chromium", driverPath)
 	}
 
 	chromeCaps := chrome.Capabilities{
