@@ -17,11 +17,11 @@ func (ewd *ExtendedWebDriver) WaitUntilBodyContains(ctx context.Context, t *test
 		body, err := driver.FindElement(selenium.ByTagName, "body")
 
 		if err != nil {
-			return false, fmt.Errorf("Unable to get current URL: %v", err)
+			return false, fmt.Errorf("unable to get current URL: %v", err)
 		}
 		bodyContent, err := body.Text()
 		if err != nil {
-			return false, fmt.Errorf("Unable to retrieve body: %v", err)
+			return false, fmt.Errorf("unable to retrieve body: %v", err)
 		}
 		return strings.Contains(bodyContent, match), nil
 	})
@@ -35,7 +35,7 @@ func (ewd *ExtendedWebDriver) WaitUntilURLIs(ctx context.Context, t *testing.T, 
 		currentURL, err := driver.CurrentURL()
 
 		if err != nil {
-			return false, fmt.Errorf("Unable to get current URL: %v", err)
+			return false, fmt.Errorf("unable to get current URL: %v", err)
 		}
 		return currentURL == url, nil
 	})
@@ -49,7 +49,7 @@ func (ewd *ExtendedWebDriver) WaitUntilURLStartsWith(ctx context.Context, t *tes
 		currentURL, err := driver.CurrentURL()
 
 		if err != nil {
-			return false, fmt.Errorf("Unable to get current URL: %v", err)
+			return false, fmt.Errorf("unable to get current URL: %v", err)
 		}
 
 		return strings.HasPrefix(currentURL, prefix), nil

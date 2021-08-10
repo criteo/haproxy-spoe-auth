@@ -4,7 +4,9 @@
 
 This project is a an agent allowing HAProxy to to handle authentication requests.
 
-## Test it now!
+**WARNING** This project is under heavy development in alpha stage and it might break anytime.
+
+## Getting started
 
 The agent is packaged in a docker-compose for you to quickly test it. You need to make sure
 Docker and docker-compose is installed on your machine. Also make sure that port 9080 is
@@ -36,8 +38,10 @@ Now you can test the following commands
     # This domain is protected and credentials are provided but with a bad password, it should return 401.
     curl -u "john:badpassword" http://app1.example.com:9080/
 
-    # This domain is protected by OpenID Connect and credentials are provided, it should return 200.
+    # This domain is protected by OpenID Connect. This should redirect you to the authorization server where you can provide the same credentials as above.
     Visit http://app2.example.com:9080/ in a browser
+
+    # Once authenticated and consent granted, your redirected to app2.
 
 Trying to visit the website protected by LDAP in a browser will display a basic auth form that you should fill
 before being granted the rights to visit the page. With OpenID Connect, you should be redirected to the Dex

@@ -14,7 +14,7 @@ func TestShouldAuthenticateSuccessfully(t *testing.T) {
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
 		// In case the cookie is set, we logout the user before running the test.
-		wd.Get(LogoutOAuht2URL)
+		wd.Get(LogoutOAuth2URL)
 
 		wd.Get(ProtectedOidcURL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
@@ -30,7 +30,7 @@ func TestShouldKeepUseLoggedIn(t *testing.T) {
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
 		// In case the cookie is set, we logout the user before running the test.
-		wd.Get(LogoutOAuht2URL)
+		wd.Get(LogoutOAuth2URL)
 
 		wd.Get(ProtectedOidcURL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
@@ -53,7 +53,7 @@ func TestShouldFailAuthentication(t *testing.T) {
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
 		// In case the cookie is set, we logout the user before running the test.
-		wd.Get(LogoutOAuht2URL)
+		wd.Get(LogoutOAuth2URL)
 
 		wd.Get(ProtectedOidcURL)
 		wd.WaitUntilRedirectedToDexLogin(ctx, t)
