@@ -34,7 +34,23 @@ func execute(command string, arg ...string) error {
 }
 
 func cleanup() error {
-	err := execute("docker-compose", "down", "-v")
+	err := execute("docker-compose", "logs", "spoe")
+	if err != nil {
+		return err
+	}
+	err = execute("docker-compose", "logs", "haproxy")
+	if err != nil {
+		return err
+	}
+	err = execute("docker-compose", "logs", "dex")
+	if err != nil {
+		return err
+	}
+	err = execute("docker-compose", "logs", "ldap")
+	if err != nil {
+		return err
+	}
+	err = execute("docker-compose", "down", "-v")
 	if err != nil {
 		return err
 	}
