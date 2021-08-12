@@ -17,7 +17,7 @@ Now, add the two following lines to your /etc/hosts to fake the domains:
     127.0.0.1       public.example.com
     127.0.0.1       app1.example.com
     127.0.0.1       app2.example.com
-    127.0.0.1       auth.example.com  # Used for the redirect callback ending the OAuth2 transaction
+    127.0.0.1       app3.example.com
     127.0.0.1       dex.example.com   # An OIDC server implementation
 
 And then run
@@ -39,9 +39,13 @@ Now you can test the following commands
     curl -u "john:badpassword" http://app1.example.com:9080/
 
     # This domain is protected by OpenID Connect. This should redirect you to the authorization server where you can provide the same credentials as above.
-    Visit http://app2.example.com:9080/ in a browser
+    # Visit http://app2.example.com:9080/ or http://app3.example.com:9080/ in a browser. They are two different applications
+    in order to test SSO. Note: Dex seems not to provide this feature though but Okta does for instance.
 
-    # Once authenticated and consent granted, your redirected to app2.
+    # Once authenticated and consent granted, your redirected to the app.
+
+    # One can also visit http://app2.example.com:9080/secret.html or http://app3.example.com:9080/secret.html to verify the
+    user is properly redirected as requested before authentication.
 
 Trying to visit the website protected by LDAP in a browser will display a basic auth form that you should fill
 before being granted the rights to visit the page. With OpenID Connect, you should be redirected to the Dex
