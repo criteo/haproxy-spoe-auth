@@ -22,23 +22,29 @@ oidc:
   # The URL to the OpenID Connect provider. This is the URL hosting the discovery endpoint
   provider_url: http://dex.example.com:9080/dex
   # The client_id and client_secret of the app representing the SPOE agent
-  client_id: haproxy-auth
-  client_secret: haproxy-auth-secret
   # The callback the OIDC server will redirect the user to once authentication is done
-  redirect_url: http://auth.example.com:9080/oauth2/callback
+  oauth2_callback_path: /oauth2/callback
+  # The path to the logout endpoint to redirect the user to.
+  oauth2_logout_path: /oauth2/logout
   # The SPOE agent will open a dedicated port for the HTTP server handling the callback. This is the address the server listens on
   callback_addr: ":5000"
+
   # Various properties of the cookie holding the ID Token of the user
   cookie_name: authsession
-  cookie_domain: example.com
   cookie_secure: false
   cookie_ttl_seconds: 3600
-  # The secret used to sign the original URL requested by the user in order to avoid open redirects
+  # The secret used to sign the state parameter
   signature_secret: myunsecuresecret
   # The secret used to encrypt the cookie in order to guarantee the privacy of the data in case of leak
   encryption_secret: anotherunsecuresecret
-  # The requested scopes needed to forge the ID Token from the authorization server
-  scopes:
-    - openid
-    - email
-    - profile
+
+  # A mapping of client credentials per protected domain
+  clients:
+    app2.example.com:
+      client_id: app2-client
+      client_secret: app2-secret
+      redirect_url: http://app2.example.com:9080/oauth2/callback
+    app3.example.com:
+      client_id: app3-client
+      client_secret: app3-secret
+      redirect_url: http://app3.example.com:9080/oauth2/callback

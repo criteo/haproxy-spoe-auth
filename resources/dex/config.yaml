@@ -27,9 +27,14 @@ connectors:
       nameAttr: sn
 
 staticClients:
-- id: haproxy-auth
-  secret: haproxy-auth-secret
-  name: 'HAProxy Auth'
-  # Where the app will be running.
+- id: app2-client
+  secret: app2-secret
+  name: 'Application 2'
   redirectURIs:
-  - 'http://auth.example.com:9080/oauth2/callback'
+  - 'http://app2.example.com:9080/oauth2/callback'
+
+- id: app3-client
+  secret: app3-secret
+  name: 'Application 3'
+  redirectURIs:
+  - 'http://app3.example.com:9080/oauth2/callback'

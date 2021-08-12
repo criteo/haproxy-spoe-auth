@@ -1,28 +1,22 @@
 package auth
 
 // RedirectPage is a template used for the final redirection
-var RedirectPageTemplate = `
+var RedirectPageTemplate = `<html>
 <head>
-<title>Redirection in progress</title>
+  <title>Redirection in progress</title>
   <meta http-equiv="refresh" content="0; URL={{.URL}}" />
 </head>
-<body>
-</body>`
+<body>Redirection in progress...</body>
+</html>`
 
 // ErrorPage is a template used in the case the final redirection cannot happen due to the bad signature of the original URL
-var ErrorPageTemplate = `
-<head>
-  <title>Error on redirection</title>
-</head>
-<body>
-You cannot be redirected to this untrusted url {{.URL}}.
-</body>`
+var ErrorPageTemplate = `<html>
+<head><title>Error on redirection</title></head>
+<body>You cannot be redirected to this untrusted url {{.URL}}.</body>
+</html>`
 
 // LogoutPage is an HTML content stating the user has been logged out successfully
-var LogoutPageTemplate = `
-<head>
-<title>Logout</title>
-</head>
-<body>
-You have been logged out successfully.
-</body>`
+var LogoutPageTemplate = `<html>
+<head><title>Logout</title></head>
+<body>You have been logged out successfully.</body>
+</html>`

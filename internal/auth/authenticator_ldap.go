@@ -105,7 +105,7 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 			var ok bool
 			authorization, ok = arg.Value.(string)
 			if !ok {
-				return false, nil, ErrNoCredential
+				return false, nil, nil
 			}
 		}
 	}

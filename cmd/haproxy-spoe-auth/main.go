@@ -56,18 +56,23 @@ func main() {
 	}
 
 	if viper.IsSet("oidc") {
+		// TODO: watch the config file to update the list of clients dynamically
+		var clientsConfig map[string]auth.OIDCClientConfig
+		err := viper.UnmarshalKey("oidc.clients", &clientsConfig)
+		if err != nil {
+			logrus.Panic(err)
+		}
+
 		oidcAuthenticator := auth.NewOIDCAuthenticator(auth.OIDCAuthenticatorOptions{
 			OAuth2AuthenticatorOptions: auth.OAuth2AuthenticatorOptions{
-				ClientID:        viper.GetString("oidc.client_id"),
-				ClientSecret:    viper.GetString("oidc.client_secret"),
-				RedirectURL:     viper.GetString("oidc.redirect_url"),
-				CallbackAddr:    viper.GetString("oidc.callback_addr"),
-				CookieName:      viper.GetString("oidc.cookie_name"),
-				CookieDomain:    viper.GetString("oidc.cookie_domain"),
-				CookieSecure:    viper.GetBool("oidc.cookie_secure"),
-				CookieTTL:       viper.GetDuration("oidc.cookie_ttl_seconds") * time.Second,
-				SignatureSecret: viper.GetString("oidc.signature_secret"),
-				Scopes:          viper.GetStringSlice("oidc.scopes"),
+				RedirectCallbackPath: viper.GetString("oidc.oauth2_callback_path"),
+				LogoutPath:           viper.GetString("oidc.oauth2_logout_path"),
+				CallbackAddr:         viper.GetString("oidc.callback_addr"),
+				CookieName:           viper.GetString("oidc.cookie_name"),
+				CookieSecure:         viper.GetBool("oidc.cookie_secure"),
+				CookieTTL:            viper.GetDuration("oidc.cookie_ttl_seconds") * time.Second,
+				SignatureSecret:      viper.GetString("oidc.signature_secret"),
+				ClientsStore:         auth.NewStaticOIDCClientStore(clientsConfig),
 			},
 			ProviderURL:      viper.GetString("oidc.provider_url"),
 			EncryptionSecret: viper.GetString("oidc.encryption_secret"),
