@@ -51,7 +51,7 @@ func StartAgent(interfaceAddr string, authenticators map[string]auth.Authenticat
 		}
 
 		if hasError {
-			actions = append(actions, auth.BuildHasErrorMessageMessage())
+			actions = append(actions, auth.BuildHasErrorMessage())
 		} else {
 			if authenticated {
 				actions = append(actions, AuthenticatedMessage)

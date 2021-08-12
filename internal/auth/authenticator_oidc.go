@@ -246,6 +246,15 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 		return false, nil, fmt.Errorf("unable to extract origin URL: %v", err)
 	}
 
+	domain := extractDomainFromHost(host)
+
+	_, err = oa.options.ClientsStore.GetClient(domain)
+	if err == ErrOIDCClientConfigNotFound {
+		return false, nil, nil
+	} else if err != nil {
+		return false, nil, fmt.Errorf("unable to find an oidc client for domain %s", domain)
+	}
+
 	// Verify the cookie to make sure the user is authenticated
 	if cookieValue != "" {
 		err := oa.checkCookie(cookieValue, extractDomainFromHost(host))
@@ -270,7 +279,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 	}
 
 	var authorizationURL string
-	err = oa.withOAuth2Config(extractDomainFromHost(host), func(config oauth2.Config) error {
+	err = oa.withOAuth2Config(domain, func(config oauth2.Config) error {
 		authorizationURL = config.AuthCodeURL(base64.StdEncoding.EncodeToString(stateBytes))
 		return nil
 	})
