@@ -11,4 +11,4 @@ raw performance for public domains. The trick is the condition in the `try-auth`
 
     event on-frontend-http-request if { hdr_beg(host) -i app1.example.com } || { hdr_beg(host) -i app2.example.com }
 
-
+One can also use a map instead of logical operators if the number of domains becomes too big (https://www.haproxy.com/blog/introduction-to-haproxy-maps/).
