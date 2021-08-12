@@ -22,25 +22,13 @@ func NewHmacSha256Computer(secret string) *HmacSha256Computer {
 }
 
 // ProduceSignature produce a signature for the given data
-func (hsc *HmacSha256Computer) ProduceSignature(data string) string {
+func (hsc *HmacSha256Computer) ProduceSignature(data []byte) string {
 	hsc.mutex.Lock()
 	defer hsc.mutex.Unlock()
 
 	h := hmac.New(sha256.New, []byte(hsc.secret))
 
 	// sign the original URL to make sure we don't allow open redirect where one can simply craft any URL
-	h.Write([]byte(data))
+	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))
-}
-
-// VerifySignature verify a signature for the given data
-func (hsc *HmacSha256Computer) VerifySignature(data string, signature string) bool {
-	hsc.mutex.Lock()
-	defer hsc.mutex.Unlock()
-
-	h := hmac.New(sha256.New, []byte(hsc.secret))
-	// sign the original URL to make sure we don't allow open redirect where one can simply craft any URL
-	h.Write([]byte(data))
-	hash := hex.EncodeToString(h.Sum(nil))
-	return hash == signature
 }
