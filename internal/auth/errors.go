@@ -8,7 +8,7 @@ import (
 var ErrNoCredential = errors.New("no credentials provided")
 
 // ErrBadAuthorizationValue error thrown when the authorization header value is in wrong format
-var ErrBadAuthorizationValue = errors.New("dad authorization value provided")
+var ErrBadAuthorizationValue = errors.New("bad authorization value provided")
 
 // ErrWrongCredentials error thrown when credentials provided by user are wrong
 var ErrWrongCredentials = errors.New("wrong credentials")
