@@ -27,3 +27,6 @@ var ErrHostArgNotFound = errors.New("host arg not found")
 
 // ErrSSLArgNotFound error thrown when the pathq arg has not been provided by HAProxy
 var ErrPathqArgNotFound = errors.New("pathq arg not found")
+
+// ErrOIDCClientConfigNotFound error thrown when there is no client config related to a given domain
+var ErrOIDCClientConfigNotFound = errors.New("no OIDC client found for this domain")

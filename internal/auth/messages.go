@@ -10,3 +10,12 @@ func BuildRedirectURLMessage(url string) spoe.ActionSetVar {
 		Value: url,
 	}
 }
+
+// BuildHasErrorMessageMessage build a message stating an error was thrown in SPOE agent
+func BuildHasErrorMessageMessage() spoe.ActionSetVar {
+	return spoe.ActionSetVar{
+		Name:  "has_error",
+		Scope: spoe.VarScopeSession,
+		Value: true,
+	}
+}
