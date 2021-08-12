@@ -353,6 +353,12 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			return
 		}
 
+		if state.Timestamp.Add(30 * time.Second).Before(time.Now()) {
+			logrus.Errorf("state value has expired: %v", err)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
 		scheme := "https"
 		if !state.SSL {
 			scheme = "http"
