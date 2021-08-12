@@ -128,7 +128,10 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 
 	if err != nil {
 		if err == ErrUserDoesntExist {
-			logrus.Debugf("User %s does not exist", username)
+			logrus.Debugf("user %s does not exist", username)
+			return false, nil, nil
+		} else if err == ErrWrongCredentials {
+			logrus.Debug("wrong credentials")
 			return false, nil, nil
 		}
 		return false, nil, err

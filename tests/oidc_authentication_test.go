@@ -15,7 +15,7 @@ func TestShouldAuthenticateSuccessfully(t *testing.T) {
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
 		// In case the cookie is set, we logout the user before running the test.
-		wd.Get(fmt.Sprintf("%s/oauth2/logout", App2URL))
+		wd.Get(fmt.Sprintf("%soauth2/logout", App2URL))
 
 		wd.Get(App2URL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
@@ -31,13 +31,13 @@ func TestShouldVerifyUserRedirectedToInitialURL(t *testing.T) {
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
 		// In case the cookie is set, we logout the user before running the test.
-		wd.Get(fmt.Sprintf("%s/oauth2/logout", App2URL))
+		wd.Get(fmt.Sprintf("%soauth2/logout", App2URL))
 
 		wd.Get(App2URL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
 		wd.WaitUntilURLIs(ctx, t, App2URL)
 		wd.WaitUntilBodyContains(ctx, t, "PROTECTED!")
-		url := fmt.Sprintf("%s/secret.html", App2URL)
+		url := fmt.Sprintf("%ssecret.html", App2URL)
 		wd.Get(url)
 		wd.WaitUntilURLIs(ctx, t, url)
 		wd.WaitUntilBodyContains(ctx, t, "SECRET!")
@@ -51,14 +51,14 @@ func TestShouldKeepUseLoggedIn(t *testing.T) {
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
 		// In case the cookie is set, we logout the user before running the test.
-		wd.Get(fmt.Sprintf("%s/oauth2/logout", App2URL))
+		wd.Get(fmt.Sprintf("%soauth2/logout", App2URL))
 
 		wd.Get(App2URL)
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
 		wd.WaitUntilURLIs(ctx, t, App2URL)
 		wd.WaitUntilBodyContains(ctx, t, "PROTECTED!")
-		wd.Get(UnprotectedURL)
-		wd.WaitUntilURLIs(ctx, t, UnprotectedURL)
+		wd.Get(PublicURL)
+		wd.WaitUntilURLIs(ctx, t, PublicURL)
 		wd.WaitUntilBodyContains(ctx, t, "Public!")
 		// Cookie should be sent and access should be given directly
 		wd.Get(App2URL)
@@ -74,7 +74,7 @@ func TestShouldFailAuthentication(t *testing.T) {
 
 	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
 		// In case the cookie is set, we logout the user before running the test.
-		wd.Get(fmt.Sprintf("%s/oauth2/logout", App2URL))
+		wd.Get(fmt.Sprintf("%soauth2/logout", App2URL))
 
 		wd.Get(App2URL)
 		wd.WaitUntilRedirectedToDexLogin(ctx, t)
