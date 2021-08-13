@@ -9,6 +9,9 @@ services:
     depends_on:
       - spoe
       - dex
+      - protected-backend
+      - unprotected-backend
+      - unauthorized-backend
     networks:
       haproxy-spoe-net:
         aliases:

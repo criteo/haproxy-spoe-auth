@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/coreos/go-oidc/v3 v3.0.0
 	github.com/criteo/haproxy-spoe-go v1.0.6
+	github.com/go-delve/delve v1.7.0 // indirect
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
