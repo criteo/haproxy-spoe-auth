@@ -56,7 +56,7 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return err
+		return fmt.Errorf("search request failed: %w", err)
 	}
 
 	if len(sr.Entries) == 0 {
@@ -75,7 +75,7 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 		if e, ok := err.(*ldap.Error); ok && e.ResultCode == 49 { // Invalid credentials
 			return ErrWrongCredentials
 		}
-		return err
+		return fmt.Errorf("unable to bind user: %w", err)
 	}
 
 	return nil
