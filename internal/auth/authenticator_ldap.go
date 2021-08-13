@@ -56,9 +56,6 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		if e, ok := err.(*ldap.Error); ok && e.ResultCode == 49 { // Invalid credentials
-			return ErrWrongCredentials
-		}
 		return err
 	}
 
@@ -75,6 +72,9 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 	// Bind as the user to verify their password
 	err = l.Bind(userdn, password)
 	if err != nil {
+		if e, ok := err.(*ldap.Error); ok && e.ResultCode == 49 { // Invalid credentials
+			return ErrWrongCredentials
+		}
 		return err
 	}
 
