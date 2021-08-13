@@ -8,7 +8,7 @@ import (
 )
 
 func TestShouldAuthenticateSuccessfullyInLDAP(t *testing.T) {
-	req, err := http.NewRequest("GET", ProtectedLdapURL, nil)
+	req, err := http.NewRequest("GET", App1URL, nil)
 	assert.NoError(t, err)
 	req.SetBasicAuth("john", "password")
 
@@ -19,7 +19,7 @@ func TestShouldAuthenticateSuccessfullyInLDAP(t *testing.T) {
 }
 
 func TestShouldFailAuthenticationInLDAP(t *testing.T) {
-	req, err := http.NewRequest("GET", ProtectedLdapURL, nil)
+	req, err := http.NewRequest("GET", App1URL, nil)
 	assert.NoError(t, err)
 	req.SetBasicAuth("john", "badpassword")
 
@@ -30,7 +30,7 @@ func TestShouldFailAuthenticationInLDAP(t *testing.T) {
 }
 
 func TestShouldFailWhenNoCredsProvided(t *testing.T) {
-	req, err := http.NewRequest("GET", ProtectedLdapURL, nil)
+	req, err := http.NewRequest("GET", App1URL, nil)
 	assert.NoError(t, err)
 
 	res, err := http.DefaultClient.Do(req)

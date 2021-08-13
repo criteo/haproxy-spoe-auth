@@ -8,7 +8,7 @@ import (
 )
 
 func TestShouldAccessPublicPageWithoutCredentials(t *testing.T) {
-	req, err := http.NewRequest("GET", UnprotectedURL, nil)
+	req, err := http.NewRequest("GET", PublicURL, nil)
 	assert.NoError(t, err)
 
 	res, err := http.DefaultClient.Do(req)

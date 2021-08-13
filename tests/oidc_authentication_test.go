@@ -57,8 +57,8 @@ func TestShouldKeepUseLoggedIn(t *testing.T) {
 		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
 		wd.WaitUntilURLIs(ctx, t, App2URL)
 		wd.WaitUntilBodyContains(ctx, t, "PROTECTED!")
-		wd.Get(UnprotectedURL)
-		wd.WaitUntilURLIs(ctx, t, UnprotectedURL)
+		wd.Get(PublicURL)
+		wd.WaitUntilURLIs(ctx, t, PublicURL)
 		wd.WaitUntilBodyContains(ctx, t, "Public!")
 		// Cookie should be sent and access should be given directly
 		wd.Get(App2URL)
