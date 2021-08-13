@@ -55,7 +55,9 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 	)
 
 	sr, err := l.Search(searchRequest)
-	if err != nil {
+	if err.(*ldap.Error).ResultCode == 49 { // Invalid credentials
+		return ErrWrongCredentials
+	} else if err != nil {
 		return err
 	}
 
@@ -125,7 +127,10 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 
 	if err != nil {
 		if err == ErrUserDoesntExist {
-			logrus.Debugf("User %s does not exist", username)
+			logrus.Debugf("user %s does not exist", username)
+			return false, nil, nil
+		} else if err == ErrWrongCredentials {
+			logrus.Debug("wrong credentials")
 			return false, nil, nil
 		}
 		return false, nil, err
