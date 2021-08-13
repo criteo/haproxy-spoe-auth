@@ -295,7 +295,6 @@ func (oa *OIDCAuthenticator) handleOAuth2Logout() http.HandlerFunc {
 		c := http.Cookie{
 			Name:     oa.options.CookieName,
 			Path:     "/",
-			Domain:   extractDomainFromHost(r.Host),
 			HttpOnly: true,
 			Secure:   oa.options.CookieSecure,
 		}
@@ -406,7 +405,6 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			Value:    encryptedIDToken,
 			Path:     "/",
 			Expires:  expiry,
-			Domain:   extractDomainFromHost(r.Host),
 			HttpOnly: true,
 			Secure:   oa.options.CookieSecure,
 		}
