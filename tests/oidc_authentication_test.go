@@ -68,6 +68,32 @@ func TestShouldKeepUseLoggedIn(t *testing.T) {
 	}))
 }
 
+func TestShouldCheckAuthorizations(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(fmt.Sprintf("%soauth2/logout", App2URL))
+
+		wd.Get(App2URL)
+		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "john", "password")
+		wd.WaitUntilURLIs(ctx, t, App2URL)
+		wd.WaitUntilBodyContains(ctx, t, "PROTECTED!")
+		return nil
+	}))
+
+	assert.NoError(t, WithWebdriver(func(wd ExtendedWebDriver) error {
+		// In case the cookie is set, we logout the user before running the test.
+		wd.Get(fmt.Sprintf("%soauth2/logout", App2URL))
+
+		wd.Get(App2URL)
+		wd.WaitUntilAuthenticatedWithOIDC(ctx, t, "harry", "password")
+		wd.WaitUntilBodyContains(ctx, t, "Forbidden")
+		return nil
+	}))
+}
+
 func TestShouldFailAuthentication(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

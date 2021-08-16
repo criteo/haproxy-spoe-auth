@@ -1,9 +1,10 @@
 package auth
 
 type OIDCClientConfig struct {
-	ClientID     string `mapstructure:"client_id"`
-	ClientSecret string `mapstructure:"client_secret"`
-	RedirectURL  string `mapstructure:"redirect_url"`
+	ClientID         string   `mapstructure:"client_id"`
+	ClientSecret     string   `mapstructure:"client_secret"`
+	RedirectURL      string   `mapstructure:"redirect_url"`
+	AuthorizedGroups []string `mapstructure:"authorized_groups"`
 }
 
 type OIDCClientsStore interface {

@@ -123,7 +123,7 @@ func (oa *OIDCAuthenticator) withOAuth2Config(domain string, callback func(c oau
 		Endpoint: oa.provider.Endpoint(),
 
 		// "openid" is a required scope for OpenID Connect flows.
-		Scopes: []string{oidc.ScopeOpenID, "email", "profile"},
+		Scopes: []string{oidc.ScopeOpenID, "email", "profile", "groups"},
 	}
 	return callback(oauth2Config)
 }
@@ -390,6 +390,57 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			logrus.Errorf("unable to encrypt the ID token: %v", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
+		}
+
+		clientConfig, err := oa.options.ClientsStore.GetClient(domain)
+		if err != nil {
+			logrus.Errorf("unable to find an oidc client for domain %s", domain)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		if len(clientConfig.AuthorizedGroups) > 0 {
+			userInfo, err := oa.provider.UserInfo(r.Context(), oauth2.StaticTokenSource(oauth2Token))
+			if err != nil {
+				logrus.Errorf("unable to retrieve user info: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+
+			var claims map[string]interface{}
+			err = userInfo.Claims(&claims)
+			if err != nil {
+				logrus.Errorf("unable to extract claims: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+
+			userGroups, ok := claims["groups"]
+			if !ok {
+				logrus.Debug("no groups associated with id token")
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+
+			authorized := false
+
+			for _, ugroup := range userGroups.([]interface{}) {
+				for _, agroup := range clientConfig.AuthorizedGroups {
+					if ugroup.(string) == agroup {
+						authorized = true
+						break
+					}
+				}
+				if authorized {
+					break
+				}
+			}
+
+			if !authorized {
+				logrus.Debug("user is not authorized")
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 		}
 
 		var expiry time.Time

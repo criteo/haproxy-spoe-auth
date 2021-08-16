@@ -44,6 +44,8 @@ oidc:
       client_id: app2-client
       client_secret: app2-secret
       redirect_url: http://app2.example.com:9080/oauth2/callback
+      authorized_groups:
+        - dev
     app3.example.com:
       client_id: app3-client
       client_secret: app3-secret
