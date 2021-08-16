@@ -56,7 +56,7 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 
 	sr, err := l.Search(searchRequest)
 	if err != nil {
-		return err
+		return fmt.Errorf("search request failed: %w", err)
 	}
 
 	if len(sr.Entries) == 0 {
@@ -72,7 +72,10 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 	// Bind as the user to verify their password
 	err = l.Bind(userdn, password)
 	if err != nil {
-		return err
+		if e, ok := err.(*ldap.Error); ok && e.ResultCode == 49 { // Invalid credentials
+			return ErrWrongCredentials
+		}
+		return fmt.Errorf("unable to bind user: %w", err)
 	}
 
 	return nil
@@ -105,7 +108,7 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 			var ok bool
 			authorization, ok = arg.Value.(string)
 			if !ok {
-				return false, nil, ErrNoCredential
+				return false, nil, nil
 			}
 		}
 	}
@@ -125,7 +128,10 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 
 	if err != nil {
 		if err == ErrUserDoesntExist {
-			logrus.Debugf("User %s does not exist", username)
+			logrus.Debugf("user %s does not exist", username)
+			return false, nil, nil
+		} else if err == ErrWrongCredentials {
+			logrus.Debug("wrong credentials")
 			return false, nil, nil
 		}
 		return false, nil, err

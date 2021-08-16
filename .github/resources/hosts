@@ -1,5 +1,5 @@
 127.0.0.1       public.example.com
 127.0.0.1       app1.example.com
 127.0.0.1       app2.example.com
-127.0.0.1       auth.example.com  # Used for the redirect callback ending the OAuth2 transaction
+127.0.0.1       app3.example.com
 127.0.0.1       dex.example.com   # An OIDC server implementation

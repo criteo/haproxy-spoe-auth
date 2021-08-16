@@ -3,13 +3,15 @@ package auth
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"net/http"
+	"strings"
 	"text/template"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	spoe "github.com/criteo/haproxy-spoe-go"
@@ -29,35 +31,34 @@ type OIDCAuthenticatorOptions struct {
 
 // OAuth2AuthenticatorOptions options to customize to the OAuth2 authenticator
 type OAuth2AuthenticatorOptions struct {
-	Endpoints    oauth2.Endpoint
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
+	Endpoints            oauth2.Endpoint
+	RedirectCallbackPath string
+	LogoutPath           string
 
 	// This is used to sign the redirection URL
 	SignatureSecret string
 
 	CookieName   string
-	CookieDomain string
 	CookieSecure bool
 	CookieTTL    time.Duration
 
-	Scopes []string
-
 	// The addr interface the callback will be exposed on.
 	CallbackAddr string
+
+	// The object retrieving the OIDC client configuration from the given domain
+	ClientsStore OIDCClientsStore
 }
 
 // State the content of the state
 type State struct {
-	URL       string `json:"url"`
-	Signature string `json:"sig"`
+	Timestamp          time.Time
+	Signature          string
+	PathAndQueryString string
+	SSL                bool
 }
 
 // OIDCAuthenticator is the OIDC implementation of the Authenticator interface
 type OIDCAuthenticator struct {
-	config   oauth2.Config
-	verifier *oidc.IDTokenVerifier
 	provider *oidc.Provider
 
 	signatureComputer *HmacSha256Computer
@@ -72,24 +73,13 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 		logrus.Fatalf("the signature secret should be at least 16 characters, %d provided", len(options.SignatureSecret))
 	}
 
+	if options.OAuth2AuthenticatorOptions.ClientsStore == nil {
+		logrus.Fatal("no client secret provided")
+	}
+
 	provider, err := oidc.NewProvider(context.Background(), options.ProviderURL)
 	if err != nil {
 		logrus.Fatalf("unable to create OIDC provider structure: %v", err)
-	}
-
-	verifier := provider.Verifier(&oidc.Config{ClientID: options.ClientID})
-
-	// Configure an OpenID Connect aware OAuth2 client.
-	oauth2Config := oauth2.Config{
-		ClientID:     options.ClientID,
-		ClientSecret: options.ClientSecret,
-		RedirectURL:  options.RedirectURL,
-
-		// Discovery returns the OAuth2 endpoints.
-		Endpoint: provider.Endpoint(),
-
-		// "openid" is a required scope for OpenID Connect flows.
-		Scopes: []string{oidc.ScopeOpenID, "email", "profile"},
 	}
 
 	tmpl, err := template.New("redirect_html").Parse(RedirectPageTemplate)
@@ -103,8 +93,6 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 	}
 
 	oa := &OIDCAuthenticator{
-		config:            oauth2Config,
-		verifier:          verifier,
 		provider:          provider,
 		options:           options,
 		signatureComputer: NewHmacSha256Computer(options.SignatureSecret),
@@ -112,29 +100,60 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 	}
 
 	go func() {
-		http.HandleFunc("/oauth2/callback", oa.handleOAuth2Callback(tmpl, errorTmpl))
-		http.HandleFunc("/logout", oa.handleOAuth2Logout())
+		http.HandleFunc(options.RedirectCallbackPath, oa.handleOAuth2Callback(tmpl, errorTmpl))
+		http.HandleFunc(options.LogoutPath, oa.handleOAuth2Logout())
 		http.ListenAndServe(options.CallbackAddr, nil)
 	}()
 
 	return oa
 }
 
-func (oa *OIDCAuthenticator) checkCookie(cookieValue string) error {
+func (oa *OIDCAuthenticator) withOAuth2Config(domain string, callback func(c oauth2.Config) error) error {
+	clientConfig, err := oa.options.ClientsStore.GetClient(domain)
+	if err != nil {
+		return fmt.Errorf("unable to find an oidc client for domain %s", domain)
+	}
+	// Configure an OpenID Connect aware OAuth2 client.
+	oauth2Config := oauth2.Config{
+		ClientID:     clientConfig.ClientID,
+		ClientSecret: clientConfig.ClientSecret,
+		RedirectURL:  clientConfig.RedirectURL,
+
+		// Discovery returns the OAuth2 endpoints.
+		Endpoint: oa.provider.Endpoint(),
+
+		// "openid" is a required scope for OpenID Connect flows.
+		Scopes: []string{oidc.ScopeOpenID, "email", "profile", "groups"},
+	}
+	return callback(oauth2Config)
+}
+
+func (oa *OIDCAuthenticator) verifyIDToken(context context.Context, domain string, rawIDToken string) (*oidc.IDToken, error) {
+	clientConfig, err := oa.options.ClientsStore.GetClient(domain)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find an oidc client for domain %s", domain)
+	}
+	verifier := oa.provider.Verifier(&oidc.Config{ClientID: clientConfig.ClientID})
+
+	// Parse and verify ID Token payload.
+	idToken, err := verifier.Verify(context, rawIDToken)
+	if err != nil {
+		return nil, fmt.Errorf("unable to verify ID Token: %v", err)
+	}
+	return idToken, nil
+}
+
+func (oa *OIDCAuthenticator) checkCookie(cookieValue string, domain string) error {
 	idToken, err := oa.encryptor.Decrypt(cookieValue)
 	if err != nil {
 		return fmt.Errorf("unable to decrypt session cookie: %v", err)
 	}
 
-	// Parse and verify ID Token payload.
-	_, err = oa.verifier.Verify(context.Background(), idToken)
-	if err != nil {
-		return fmt.Errorf("unable to verify ID Token: %v", err)
-	}
-	return nil
+	_, err = oa.verifyIDToken(context.Background(), domain, idToken)
+	return err
 }
 
-func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
+func extractOAuth2Args(msg *spoe.Message) (bool, string, string, string, error) {
 	var ssl *bool
 	var host, pathq *string
 	var cookie string
@@ -145,7 +164,7 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 		if arg.Name == "arg_ssl" {
 			x, ok := arg.Value.(bool)
 			if !ok {
-				return "", "", fmt.Errorf("SSL is not a bool: %v", arg.Value)
+				return false, "", "", "", fmt.Errorf("SSL is not a bool: %v", arg.Value)
 			}
 
 			ssl = new(bool)
@@ -156,7 +175,7 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 		if arg.Name == "arg_host" {
 			x, ok := arg.Value.(string)
 			if !ok {
-				return "", "", fmt.Errorf("host is not a string: %v", arg.Value)
+				return false, "", "", "", fmt.Errorf("host is not a string: %v", arg.Value)
 			}
 
 			host = new(string)
@@ -167,7 +186,7 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 		if arg.Name == "arg_pathq" {
 			x, ok := arg.Value.(string)
 			if !ok {
-				return "", "", fmt.Errorf("pathq is not a string: %v", arg.Value)
+				return false, "", "", "", fmt.Errorf("pathq is not a string: %v", arg.Value)
 			}
 
 			pathq = new(string)
@@ -187,51 +206,87 @@ func extractOAuth2Args(msg *spoe.Message) (string, string, error) {
 	}
 
 	if ssl == nil {
-		return "", "", ErrSSLArgNotFound
+		return false, "", "", "", ErrSSLArgNotFound
 	}
 
 	if host == nil {
-		return "", "", ErrHostArgNotFound
+		return false, "", "", "", ErrHostArgNotFound
 	}
 
 	if pathq == nil {
-		return "", "", ErrPathqArgNotFound
+		return false, "", "", "", ErrPathqArgNotFound
 	}
+	return *ssl, *host, *pathq, cookie, nil
+}
 
-	scheme := "http"
-	if *ssl {
-		scheme = "https"
+func (oa *OIDCAuthenticator) computeStateSignature(state *State) string {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(state.Timestamp.Unix()))
+	data := append(b, state.PathAndQueryString...)
+	var ssl byte = 0
+	if state.SSL {
+		ssl = 1
 	}
-	return fmt.Sprintf("%s://%s%s", scheme, *host, *pathq), cookie, nil
+	data = append(data, ssl)
+	return oa.signatureComputer.ProduceSignature(data)
+}
+
+func extractDomainFromHost(host string) string {
+	l := strings.Split(host, ":")
+	if len(l) < 1 {
+		return ""
+	}
+	return l[0]
 }
 
 // Authenticate treat an authentication request coming from HAProxy
 func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Action, error) {
-	originURL, cookieValue, err := extractOAuth2Args(msg)
+	ssl, host, pathq, cookieValue, err := extractOAuth2Args(msg)
 	if err != nil {
 		return false, nil, fmt.Errorf("unable to extract origin URL: %v", err)
 	}
 
+	domain := extractDomainFromHost(host)
+
+	_, err = oa.options.ClientsStore.GetClient(domain)
+	if err == ErrOIDCClientConfigNotFound {
+		return false, nil, nil
+	} else if err != nil {
+		return false, nil, fmt.Errorf("unable to find an oidc client for domain %s", domain)
+	}
+
 	// Verify the cookie to make sure the user is authenticated
 	if cookieValue != "" {
-		err := oa.checkCookie(cookieValue)
+		err := oa.checkCookie(cookieValue, extractDomainFromHost(host))
 		if err != nil {
-			logrus.Debugf("Unable to verify cookie: %v", err)
+			return false, nil, err
 		} else {
 			return true, nil, nil
 		}
 	}
 
-	var state State
-	state.URL = originURL
-	state.Signature = oa.signatureComputer.ProduceSignature(originURL)
+	currentTime := time.Now()
 
-	stateBytes, err := json.Marshal(state)
+	var state State
+	state.Timestamp = currentTime
+	state.PathAndQueryString = pathq
+	state.SSL = ssl
+	state.Signature = oa.computeStateSignature(&state)
+
+	stateBytes, err := msgpack.Marshal(state)
 	if err != nil {
 		return false, nil, fmt.Errorf("unable to marshal the state")
 	}
 
-	authorizationURL := oa.config.AuthCodeURL(base64.StdEncoding.EncodeToString(stateBytes))
+	var authorizationURL string
+	err = oa.withOAuth2Config(domain, func(config oauth2.Config) error {
+		authorizationURL = config.AuthCodeURL(base64.StdEncoding.EncodeToString(stateBytes))
+		return nil
+	})
+	if err != nil {
+		return false, nil, fmt.Errorf("unable to build authorize url: %w", err)
+	}
+
 	return false, []spoe.Action{BuildRedirectURLMessage(authorizationURL)}, nil
 }
 
@@ -240,24 +295,35 @@ func (oa *OIDCAuthenticator) handleOAuth2Logout() http.HandlerFunc {
 		c := http.Cookie{
 			Name:     oa.options.CookieName,
 			Path:     "/",
-			Domain:   oa.options.CookieDomain,
 			HttpOnly: true,
 			Secure:   oa.options.CookieSecure,
 		}
 		http.SetCookie(w, &c)
+
+		// TODO: make a call to the logout endpoint of the authz server assuming it is implemented.
+		// RFC is currently in draft state: https://openid.net/specs/openid-connect-session-1_0.html
+
 		fmt.Fprint(w, LogoutPageTemplate)
 	}
 }
 
 func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, errorTmpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Verify state and errors.
 		stateB64Payload := r.URL.Query().Get("state")
 		if stateB64Payload == "" {
-			http.Error(w, "Cannot extract the state", http.StatusBadRequest)
+			logrus.Error("cannot extract the state query param")
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
 		}
 
-		oauth2Token, err := oa.config.Exchange(r.Context(), r.URL.Query().Get("code"))
+		domain := extractDomainFromHost(r.Host)
+
+		var oauth2Token *oauth2.Token
+		err := oa.withOAuth2Config(domain, func(config oauth2.Config) error {
+			token, err := config.Exchange(r.Context(), r.URL.Query().Get("code"))
+			oauth2Token = token
+			return err
+		})
 		if err != nil {
 			logrus.Errorf("unable to retrieve OAuth2 token: %v", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)
@@ -273,7 +339,7 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 		}
 
 		// Parse and verify ID Token payload.
-		idToken, err := oa.verifier.Verify(r.Context(), rawIDToken)
+		idToken, err := oa.verifyIDToken(r.Context(), domain, rawIDToken)
 		if err != nil {
 			logrus.Errorf("unable to verify the ID token: %v", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)
@@ -288,16 +354,28 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 		}
 
 		var state State
-		err = json.Unmarshal(stateJSONPayload, &state)
+		err = msgpack.Unmarshal(stateJSONPayload, &state)
 		if err != nil {
 			logrus.Errorf("unable to unmarshal the state payload: %v", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return
 		}
 
-		signatureOk := oa.signatureComputer.VerifySignature(state.URL, state.Signature)
-		if !signatureOk {
-			err = errorTmpl.Execute(w, struct{ URL string }{URL: string(state.URL)})
+		if state.Timestamp.Add(30 * time.Second).Before(time.Now()) {
+			logrus.Errorf("state value has expired: %v", err)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		scheme := "https"
+		if !state.SSL {
+			scheme = "http"
+		}
+		url := fmt.Sprintf("%s://%s%s", scheme, r.Host, state.PathAndQueryString)
+		logrus.Debugf("target url request by user %s", url)
+		signature := oa.computeStateSignature(&state)
+		if signature != state.Signature {
+			err = errorTmpl.Execute(w, struct{ URL string }{URL: url})
 			if err != nil {
 				logrus.Errorf("unable to render error template: %v", err)
 				http.Error(w, "Bad request", http.StatusBadRequest)
@@ -311,6 +389,58 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 		if err != nil {
 			logrus.Errorf("unable to encrypt the ID token: %v", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		clientConfig, err := oa.options.ClientsStore.GetClient(domain)
+		if err != nil {
+			logrus.Errorf("unable to find an oidc client for domain %s", domain)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		if len(clientConfig.AuthorizedGroups) > 0 {
+			userInfo, err := oa.provider.UserInfo(r.Context(), oauth2.StaticTokenSource(oauth2Token))
+			if err != nil {
+				logrus.Errorf("unable to retrieve user info: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+
+			var claims map[string]interface{}
+			err = userInfo.Claims(&claims)
+			if err != nil {
+				logrus.Errorf("unable to extract claims: %v", err)
+				http.Error(w, "Bad request", http.StatusBadRequest)
+				return
+			}
+
+			userGroups, ok := claims["groups"]
+			if !ok {
+				logrus.Debug("no groups associated with id token")
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+
+			authorized := false
+
+			for _, ugroup := range userGroups.([]interface{}) {
+				for _, agroup := range clientConfig.AuthorizedGroups {
+					if ugroup.(string) == agroup {
+						authorized = true
+						break
+					}
+				}
+				if authorized {
+					break
+				}
+			}
+
+			if !authorized {
+				logrus.Debug("user is not authorized")
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
 		}
 
 		var expiry time.Time
@@ -326,14 +456,13 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			Value:    encryptedIDToken,
 			Path:     "/",
 			Expires:  expiry,
-			Domain:   oa.options.CookieDomain,
 			HttpOnly: true,
 			Secure:   oa.options.CookieSecure,
 		}
 
 		http.SetCookie(w, &cookie)
 
-		err = tmpl.Execute(w, struct{ URL string }{URL: string(state.URL)})
+		err = tmpl.Execute(w, struct{ URL string }{URL: string(url)})
 		if err != nil {
 			logrus.Errorf("unable to render redirect template: %v", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)

@@ -23,21 +23,24 @@ var AuthenticatedMessage = spoe.ActionSetVar{
 }
 
 // StartAgent start the agent
-func StartAgent(interfaceAddr string, authentifiers map[string]auth.Authenticator) {
+func StartAgent(interfaceAddr string, authenticators map[string]auth.Authenticator) {
 	agent := spoe.New(func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
 		var actions []spoe.Action
 
 		var authenticated bool = false
+		var hasError bool = false
+
 		for messages.Next() {
 			msg := messages.Message
-			logrus.Debugf("New message with name %s received", msg.Name)
+			logrus.Debugf("new message with name %s received", msg.Name)
 
-			authentifier, ok := authentifiers[msg.Name]
+			authentifier, ok := authenticators[msg.Name]
 			if ok {
 				isAuthenticated, replyActions, err := authentifier.Authenticate(&msg)
 				if err != nil {
-					logrus.Errorf("Unable to authenticate user: %v", err)
-					continue
+					logrus.Errorf("unable to authenticate user: %v", err)
+					hasError = true
+					break
 				}
 				actions = append(actions, replyActions...)
 
@@ -47,16 +50,20 @@ func StartAgent(interfaceAddr string, authentifiers map[string]auth.Authenticato
 			}
 		}
 
-		if authenticated {
-			actions = append(actions, AuthenticatedMessage)
+		if hasError {
+			actions = append(actions, auth.BuildHasErrorMessage())
 		} else {
-			actions = append(actions, NotAuthenticatedMessage)
-		}
+			if authenticated {
+				actions = append(actions, AuthenticatedMessage)
+			} else {
+				actions = append(actions, NotAuthenticatedMessage)
+			}
 
+		}
 		return actions, nil
 	})
 
-	logrus.Infof("Agent starting and listening on %s", interfaceAddr)
+	logrus.Infof("agent starting and listening on %s with %d authenticators", interfaceAddr, len(authenticators))
 	if err := agent.ListenAndServe(interfaceAddr); err != nil {
 		log.Fatal(err)
 	}
