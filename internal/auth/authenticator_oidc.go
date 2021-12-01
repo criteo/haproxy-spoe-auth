@@ -34,6 +34,7 @@ type OAuth2AuthenticatorOptions struct {
 	Endpoints            oauth2.Endpoint
 	RedirectCallbackPath string
 	LogoutPath           string
+	HealthCheckPath      string
 
 	// This is used to sign the redirection URL
 	SignatureSecret string
@@ -102,10 +103,15 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 	go func() {
 		http.HandleFunc(options.RedirectCallbackPath, oa.handleOAuth2Callback(tmpl, errorTmpl))
 		http.HandleFunc(options.LogoutPath, oa.handleOAuth2Logout())
+		http.HandleFunc(options.HealthCheckPath, handleHealthCheck)
 		http.ListenAndServe(options.CallbackAddr, nil)
 	}()
 
 	return oa
+}
+
+func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("OK"))
 }
 
 func (oa *OIDCAuthenticator) withOAuth2Config(domain string, callback func(c oauth2.Config) error) error {
