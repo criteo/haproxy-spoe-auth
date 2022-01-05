@@ -106,6 +106,7 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 	go func() {
 		http.HandleFunc(options.RedirectCallbackPath, oa.handleOAuth2Callback(tmpl, errorTmpl))
 		http.HandleFunc(options.LogoutPath, oa.handleOAuth2Logout())
+		logrus.Infof("OIDC API is exposed on %s", options.CallbackAddr)
 		http.ListenAndServe(options.CallbackAddr, nil)
 	}()
 
