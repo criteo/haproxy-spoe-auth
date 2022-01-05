@@ -18,21 +18,21 @@ services:
           - dex.example.com
 
   protected-backend:
-    image: nginx
+    image: nginx:1.21.5
     volumes:
       - ./resources/protected:/usr/share/nginx/html
       - ./resources/nginx/default.conf:/etc/nginx/conf.d/default.conf
     networks:
       haproxy-spoe-net:
   unprotected-backend:
-    image: nginx
+    image: nginx:1.21.5
     volumes:
       - ./resources/unprotected:/usr/share/nginx/html
       - ./resources/nginx/default.conf:/etc/nginx/conf.d/default.conf
     networks:
       haproxy-spoe-net:
   unauthorized-backend:
-    image: nginx
+    image: nginx:1.21.5
     volumes:
       - ./resources/unauthorized:/usr/share/nginx/html
       - ./resources/nginx/default.conf:/etc/nginx/conf.d/default.conf
