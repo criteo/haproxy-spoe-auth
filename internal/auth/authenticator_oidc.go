@@ -18,6 +18,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// ValidStateDuration is the amount of time before the state is considered expired. This will be replaced
+// by an expiration in a JWT token in a future review.
+const ValidStateDuration = 30 * time.Second
+
 // OIDCAuthenticatorOptions options to customize to the OIDC authenticator
 type OIDCAuthenticatorOptions struct {
 	OAuth2AuthenticatorOptions
@@ -104,6 +108,7 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 		http.HandleFunc(options.RedirectCallbackPath, oa.handleOAuth2Callback(tmpl, errorTmpl))
 		http.HandleFunc(options.LogoutPath, oa.handleOAuth2Logout())
 		http.HandleFunc(options.HealthCheckPath, handleHealthCheck)
+		logrus.Infof("OIDC API is exposed on %s", options.CallbackAddr)
 		http.ListenAndServe(options.CallbackAddr, nil)
 	}()
 
@@ -367,7 +372,7 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 			return
 		}
 
-		if state.Timestamp.Add(30 * time.Second).Before(time.Now()) {
+		if state.Timestamp.Add(ValidStateDuration).Before(time.Now()) {
 			logrus.Errorf("state value has expired: %v", err)
 			http.Error(w, "Bad request", http.StatusBadRequest)
 			return

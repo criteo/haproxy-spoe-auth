@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -x
+set -e
+
 go run .github/scripts/prepare/main.go
 sleep 20
 

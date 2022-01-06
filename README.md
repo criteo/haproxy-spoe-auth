@@ -42,7 +42,7 @@ Now you can test the following commands
     # Visit http://app2.example.com:9080/ or http://app3.example.com:9080/ in a browser. They are two different applications
     in order to test SSO. Note: Dex seems not to provide this feature though but Okta does for instance.
 
-    # Once authenticated and consent granted, your redirected to the app.
+    # Once authenticated and consent granted, you're redirected to the app.
 
     # One can also visit http://app2.example.com:9080/secret.html or http://app3.example.com:9080/secret.html to verify the
     user is properly redirected as requested before authentication.
