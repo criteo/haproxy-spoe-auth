@@ -67,6 +67,7 @@ func main() {
 			OAuth2AuthenticatorOptions: auth.OAuth2AuthenticatorOptions{
 				RedirectCallbackPath: viper.GetString("oidc.oauth2_callback_path"),
 				LogoutPath:           viper.GetString("oidc.oauth2_logout_path"),
+				HealthCheckPath:      viper.GetString("oidc.oauth2_healthcheck_path"),
 				CallbackAddr:         viper.GetString("oidc.callback_addr"),
 				CookieName:           viper.GetString("oidc.cookie_name"),
 				CookieSecure:         viper.GetBool("oidc.cookie_secure"),
