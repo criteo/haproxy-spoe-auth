@@ -32,7 +32,7 @@ func NewLDAPAuthenticator(options LDAPConnectionDetails) *LDAPAuthenticator {
 	}
 }
 
-func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password string) error {
+func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password, group string) error {
 	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", ldapDetails.Hostname, ldapDetails.Port))
 	if err != nil {
 		return err
@@ -49,7 +49,7 @@ func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password st
 	searchRequest := ldap.NewSearchRequest(
 		ldapDetails.BaseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 1, 0, false,
-		strings.Replace(ldapDetails.UserFilter, "{login}", username, 1),
+		strings.Replace(strings.Replace(ldapDetails.UserFilter, "{login}", username, 1), "{group}", group, 1),
 		[]string{"dn"},
 		nil,
 	)
@@ -100,6 +100,8 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 // Authenticate handle an authentication request coming from HAProxy
 func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Action, error) {
 	var authorization string
+	group := ""
+	isGroupProvided := false
 
 	for msg.Args.Next() {
 		arg := msg.Args.Arg
@@ -110,7 +112,18 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 			if !ok {
 				return false, nil, nil
 			}
+		} else if arg.Name == "authorized_group" {
+			var ok bool
+			group, ok = arg.Value.(string)
+			if !ok {
+				group = ""
+			}
+			isGroupProvided = true
 		}
+	}
+
+	if isGroupProvided {
+		logrus.Debug(fmt.Sprintf("Group is <%s>", group))
 	}
 
 	if authorization == "" {
@@ -124,11 +137,15 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 		return false, nil, fmt.Errorf("unable to parse basic auth header")
 	}
 
-	err = verifyCredentials(&la.connectionDetails, username, password)
+	err = verifyCredentials(&la.connectionDetails, username, password, group)
 
 	if err != nil {
 		if err == ErrUserDoesntExist {
-			logrus.Debugf("user %s does not exist", username)
+			if isGroupProvided {
+				logrus.Debugf("user <%s> doesn't exist, or is not a member of group <%s>", username, group)
+			} else {
+				logrus.Debugf("user %s does not exist", username)
+			}
 			return false, nil, nil
 		} else if err == ErrWrongCredentials {
 			logrus.Debug("wrong credentials")

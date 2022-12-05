@@ -15,7 +15,7 @@ ldap:
   # The base DN used for the search queries 
   base_dn: dc=example,dc=com
   # The filter for the query searching for the user provided
-  user_filter: "(cn={login})"
+  user_filter: "(&(cn={login})(ou:dn:={group}))"
 
 # If set, the OpenID Connect authenticator is enabled
 oidc:
