@@ -29,6 +29,17 @@ func TestShouldFailAuthenticationInLDAP(t *testing.T) {
 	assert.Equal(t, 401, res.StatusCode)
 }
 
+func TestShouldFailAuthenticationInLDAPWrongGroup(t *testing.T) {
+	req, err := http.NewRequest("GET", App1URL, nil)
+	assert.NoError(t, err)
+	req.SetBasicAuth("barry", "password")
+
+	res, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 401, res.StatusCode)
+}
+
 func TestShouldFailWhenNoCredsProvided(t *testing.T) {
 	req, err := http.NewRequest("GET", App1URL, nil)
 	assert.NoError(t, err)
