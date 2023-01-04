@@ -7,10 +7,10 @@ server:
 # If set, the LDAP authenticator is enabled
 ldap:
   # The URI and port to the ldap server
-  hostname: ldap://ldap
-  port: 389
+  uri: ldaps://ldap
+  port: 636
   # In case of an ldaps connection, verify the TLS certificate of the server
-  verify_tls: true
+  verify_tls: false
   # The DN and password of the user to bind with in order to perform the search query to find the user
   user_dn: cn=admin,dc=example,dc=com
   password: password

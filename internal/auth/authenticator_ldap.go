@@ -13,7 +13,7 @@ import (
 
 // LDAPConnectionDetails represents the connection details
 type LDAPConnectionDetails struct {
-	Hostname   string
+	URI        string
 	Port       int
 	UserDN     string
 	Password   string
@@ -35,7 +35,8 @@ func NewLDAPAuthenticator(options LDAPConnectionDetails) *LDAPAuthenticator {
 }
 
 func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password, group string) error {
-	l, err := ldap.DialURL(fmt.Sprintf("%s:%d", ldapDetails.Hostname, ldapDetails.Port),
+	ldap_uri_string := fmt.Sprintf("%s:%d", ldapDetails.URI, ldapDetails.Port)
+	l, err := ldap.DialURL(ldap_uri_string,
 		ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: !ldapDetails.VerifyTLS}))
 	if err != nil {
 		return err
