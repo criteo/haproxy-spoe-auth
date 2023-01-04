@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	spoe "github.com/criteo/haproxy-spoe-go"
+	"github.com/go-ldap/ldap/v3"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/ldap.v3"
 )
 
 // LDAPConnectionDetails represents the connection details
