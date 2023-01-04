@@ -45,7 +45,7 @@ func main() {
 
 	if viper.IsSet("ldap") {
 		ldapAuthentifier := auth.NewLDAPAuthenticator(auth.LDAPConnectionDetails{
-			Hostname:   viper.GetString("ldap.hostname"),
+			URI:        viper.GetString("ldap.uri"),
 			Port:       viper.GetInt("ldap.port"),
 			UserDN:     viper.GetString("ldap.user_dn"),
 			Password:   viper.GetString("ldap.password"),

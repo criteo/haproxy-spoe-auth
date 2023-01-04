@@ -80,6 +80,7 @@ services:
       - LDAP_ADDITIONAL_MODULES=memberof
       - LDAP_ADDITIONAL_SCHEMAS=openldap
       - LDAP_FORCE_RECONFIGURE=true
+      - LDAP_TLS_VERIFY_CLIENT=try
     command:
       - '--copy-service'
       - '--loglevel'
