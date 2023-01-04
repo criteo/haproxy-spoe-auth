@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -18,6 +19,7 @@ type LDAPConnectionDetails struct {
 	Password   string
 	BaseDN     string
 	UserFilter string
+	VerifyTLS  bool
 }
 
 // LDAPAuthenticator is the LDAP implementation of the Authenticator interface
@@ -33,7 +35,8 @@ func NewLDAPAuthenticator(options LDAPConnectionDetails) *LDAPAuthenticator {
 }
 
 func verifyCredentials(ldapDetails *LDAPConnectionDetails, username, password, group string) error {
-	l, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", ldapDetails.Hostname, ldapDetails.Port))
+	l, err := ldap.DialURL(fmt.Sprintf("%s:%d", ldapDetails.Hostname, ldapDetails.Port),
+		ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: !ldapDetails.VerifyTLS}))
 	if err != nil {
 		return err
 	}
