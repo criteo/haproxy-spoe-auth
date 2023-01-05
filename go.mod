@@ -10,6 +10,6 @@ require (
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tebeka/selenium v0.9.9
-	github.com/vmihailenco/msgpack/v5 v5.3.4
+	github.com/vmihailenco/msgpack/v5 v5.3.5
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
 )
