@@ -14,7 +14,7 @@ func TestShouldAuthenticateSuccessfullyInLDAP(t *testing.T) {
 
 	res, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)
-
+	assert.Equal(t, "john", res.Header.Get("request-x-authorized-user"))
 	assert.Equal(t, 200, res.StatusCode)
 }
 

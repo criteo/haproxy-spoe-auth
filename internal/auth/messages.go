@@ -19,3 +19,12 @@ func BuildHasErrorMessage() spoe.ActionSetVar {
 		Value: true,
 	}
 }
+
+// AuthenticatedUserMessage build a message containing the username of the authenticated user
+func AuthenticatedUserMessage(username string) spoe.ActionSetVar {
+	return spoe.ActionSetVar{
+		Name:  "authenticated_user",
+		Scope: spoe.VarScopeSession,
+		Value: username,
+	}
+}
