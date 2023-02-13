@@ -159,5 +159,5 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 	}
 
 	logrus.Debug("User is authenticated")
-	return true, nil, nil
+	return true, []spoe.Action{AuthenticatedUserMessage(username)}, nil
 }
