@@ -4,12 +4,12 @@ if [[ "$DEBUG_ENABLED" -eq "1" ]]
 then
     echo "Running agent along with debug server"
     /scripts/run-with-debug.sh haproxy-spoe-auth cmd/haproxy-spoe-auth/main.go -- \
-        -config /configuration/config.yml
+        -config /configuration/config.yml -dynamic-client-info
 else
     while true
     do
         echo "Running agent without debug server"
-        go run cmd/haproxy-spoe-auth/main.go -config /configuration/config.yml
+        go run cmd/haproxy-spoe-auth/main.go -config /configuration/config.yml -dynamic-client-info
         sleep 2
     done
 fi

@@ -25,6 +25,7 @@ func LogLevelFromLogString(level string) logrus.Level {
 func main() {
 	var configFile string
 	flag.StringVar(&configFile, "config", "", "The path to the configuration file")
+	dynamicClientInfo := flag.Bool("dynamic-client-info", false, "Dynamically read client information")
 	flag.Parse()
 
 	if configFile != "" {
@@ -57,24 +58,31 @@ func main() {
 	}
 
 	if viper.IsSet("oidc") {
-		// TODO: watch the config file to update the list of clients dynamically
-		var clientsConfig map[string]auth.OIDCClientConfig
-		err := viper.UnmarshalKey("oidc.clients", &clientsConfig)
-		if err != nil {
-			logrus.Panic(err)
+		var clientsStore auth.OIDCClientsStore
+		if !*dynamicClientInfo {
+			// TODO: watch the config file to update the list of clients dynamically
+			var clientsConfig map[string]auth.OIDCClientConfig
+			err := viper.UnmarshalKey("oidc.clients", &clientsConfig)
+			if err != nil {
+				logrus.Panic(err)
+			}
+			clientsStore = auth.NewStaticOIDCClientStore(clientsConfig)
+		} else {
+			clientsStore = auth.NewEmptyStaticOIDCClientStore()
 		}
 
 		oidcAuthenticator := auth.NewOIDCAuthenticator(auth.OIDCAuthenticatorOptions{
 			OAuth2AuthenticatorOptions: auth.OAuth2AuthenticatorOptions{
-				RedirectCallbackPath: viper.GetString("oidc.oauth2_callback_path"),
-				LogoutPath:           viper.GetString("oidc.oauth2_logout_path"),
-				HealthCheckPath:      viper.GetString("oidc.oauth2_healthcheck_path"),
-				CallbackAddr:         viper.GetString("oidc.callback_addr"),
-				CookieName:           viper.GetString("oidc.cookie_name"),
-				CookieSecure:         viper.GetBool("oidc.cookie_secure"),
-				CookieTTL:            viper.GetDuration("oidc.cookie_ttl_seconds") * time.Second,
-				SignatureSecret:      viper.GetString("oidc.signature_secret"),
-				ClientsStore:         auth.NewStaticOIDCClientStore(clientsConfig),
+				RedirectCallbackPath:       viper.GetString("oidc.oauth2_callback_path"),
+				LogoutPath:                 viper.GetString("oidc.oauth2_logout_path"),
+				HealthCheckPath:            viper.GetString("oidc.oauth2_healthcheck_path"),
+				CallbackAddr:               viper.GetString("oidc.callback_addr"),
+				CookieName:                 viper.GetString("oidc.cookie_name"),
+				CookieSecure:               viper.GetBool("oidc.cookie_secure"),
+				CookieTTL:                  viper.GetDuration("oidc.cookie_ttl_seconds") * time.Second,
+				SignatureSecret:            viper.GetString("oidc.signature_secret"),
+				ClientsStore:               clientsStore,
+				ReadClientInfoFromMessages: *dynamicClientInfo,
 			},
 			ProviderURL:      viper.GetString("oidc.provider_url"),
 			EncryptionSecret: viper.GetString("oidc.encryption_secret"),
