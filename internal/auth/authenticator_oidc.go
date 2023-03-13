@@ -52,6 +52,9 @@ type OAuth2AuthenticatorOptions struct {
 
 	// The object retrieving the OIDC client configuration from the given domain
 	ClientsStore OIDCClientsStore
+
+	// Indicates whether the client info have to be read from spoe messages
+	ReadClientInfoFromMessages bool
 }
 
 // State the content of the state
@@ -70,6 +73,16 @@ type OIDCAuthenticator struct {
 	encryptor         *AESEncryptor
 
 	options OIDCAuthenticatorOptions
+}
+
+type OAuthArgs struct {
+	ssl bool
+	host string
+	pathq string
+	clientid string
+	clientsecret string
+	redirecturl string
+	cookie string
 }
 
 // NewOIDCAuthenticator create an instance of an OIDC authenticator
@@ -164,10 +177,11 @@ func (oa *OIDCAuthenticator) checkCookie(cookieValue string, domain string) erro
 	return err
 }
 
-func extractOAuth2Args(msg *spoe.Message) (bool, string, string, string, error) {
+func extractOAuth2Args(msg *spoe.Message, readClientInfoFromMessages bool) (OAuthArgs, error) {
 	var ssl *bool
 	var host, pathq *string
 	var cookie string
+	var clientid, clientsecret, redirecturl *string
 
 	for msg.Args.Next() {
 		arg := msg.Args.Arg
@@ -175,7 +189,8 @@ func extractOAuth2Args(msg *spoe.Message) (bool, string, string, string, error) 
 		if arg.Name == "arg_ssl" {
 			x, ok := arg.Value.(bool)
 			if !ok {
-				return false, "", "", "", fmt.Errorf("SSL is not a bool: %v", arg.Value)
+				return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+					fmt.Errorf("SSL is not a bool: %v", arg.Value)
 			}
 
 			ssl = new(bool)
@@ -186,7 +201,8 @@ func extractOAuth2Args(msg *spoe.Message) (bool, string, string, string, error) 
 		if arg.Name == "arg_host" {
 			x, ok := arg.Value.(string)
 			if !ok {
-				return false, "", "", "", fmt.Errorf("host is not a string: %v", arg.Value)
+				return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+					fmt.Errorf("host is not a string: %v", arg.Value)
 			}
 
 			host = new(string)
@@ -197,7 +213,8 @@ func extractOAuth2Args(msg *spoe.Message) (bool, string, string, string, error) 
 		if arg.Name == "arg_pathq" {
 			x, ok := arg.Value.(string)
 			if !ok {
-				return false, "", "", "", fmt.Errorf("pathq is not a string: %v", arg.Value)
+				return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+					fmt.Errorf("pathq is not a string: %v", arg.Value)
 			}
 
 			pathq = new(string)
@@ -214,20 +231,78 @@ func extractOAuth2Args(msg *spoe.Message) (bool, string, string, string, error) 
 			cookie = x
 			continue
 		}
+
+		if arg.Name == "arg_client_id" {
+			if !readClientInfoFromMessages {
+				continue
+			}
+			x, ok := arg.Value.(string)
+			if !ok {
+				logrus.Debugf("clientid is not defined or not a string: %v", arg.Value)
+				continue
+			}
+
+			clientid = new(string)
+			*clientid = x
+			continue
+		}
+
+		if arg.Name == "arg_client_secret" {
+			if !readClientInfoFromMessages {
+				continue
+			}
+			x, ok := arg.Value.(string)
+			if !ok {
+				logrus.Debugf("clientsecret is not defined or not a string: %v", arg.Value)
+				continue
+			}
+
+			clientsecret = new(string)
+			*clientsecret = x
+			continue
+		}
+
+		if arg.Name == "arg_redirect_url" {
+			if !readClientInfoFromMessages {
+				continue
+			}
+			x, ok := arg.Value.(string)
+			if !ok {
+				logrus.Debugf("redirecturl is not defined or not a string: %v", arg.Value)
+				continue
+			}
+
+			redirecturl = new(string)
+			*redirecturl = x
+			continue
+		}
 	}
 
 	if ssl == nil {
-		return false, "", "", "", ErrSSLArgNotFound
+		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+			ErrSSLArgNotFound
 	}
 
 	if host == nil {
-		return false, "", "", "", ErrHostArgNotFound
+		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+			ErrHostArgNotFound
 	}
 
 	if pathq == nil {
-		return false, "", "", "", ErrPathqArgNotFound
+		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+			ErrPathqArgNotFound
 	}
-	return *ssl, *host, *pathq, cookie, nil
+
+	if clientid == nil || clientsecret == nil || redirecturl == nil {
+		temp := ""
+		clientid = &temp
+		clientsecret = &temp
+		redirecturl = &temp
+	}
+	return OAuthArgs{ssl: *ssl, host: *host, pathq: *pathq,
+					 cookie: cookie, clientid: *clientid,
+					 clientsecret: *clientsecret, redirecturl: *redirecturl},
+		nil
 }
 
 func (oa *OIDCAuthenticator) computeStateSignature(state *State) string {
@@ -252,12 +327,17 @@ func extractDomainFromHost(host string) string {
 
 // Authenticate treat an authentication request coming from HAProxy
 func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Action, error) {
-	ssl, host, pathq, cookieValue, err := extractOAuth2Args(msg)
+	// ssl, host, pathq, clientid, clientsecret, redirecturl, cookieValue, err := extractOAuth2Args(msg, oa.options.ReadClientInfoFromMessages)
+	oauthArgs, err := extractOAuth2Args(msg, oa.options.ReadClientInfoFromMessages)
 	if err != nil {
 		return false, nil, fmt.Errorf("unable to extract origin URL: %v", err)
 	}
 
-	domain := extractDomainFromHost(host)
+	domain := extractDomainFromHost(oauthArgs.host)
+
+	if oauthArgs.clientid != "" {
+		oa.options.ClientsStore.AddClient(domain, oauthArgs.clientid, oauthArgs.clientsecret, oauthArgs.redirecturl)
+	}
 
 	_, err = oa.options.ClientsStore.GetClient(domain)
 	if err == ErrOIDCClientConfigNotFound {
@@ -267,8 +347,8 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 	}
 
 	// Verify the cookie to make sure the user is authenticated
-	if cookieValue != "" {
-		err := oa.checkCookie(cookieValue, extractDomainFromHost(host))
+	if oauthArgs.cookie != "" {
+		err := oa.checkCookie(oauthArgs.cookie, extractDomainFromHost(oauthArgs.host))
 		if err != nil {
 			return false, nil, err
 		} else {
@@ -280,8 +360,8 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 
 	var state State
 	state.Timestamp = currentTime
-	state.PathAndQueryString = pathq
-	state.SSL = ssl
+	state.PathAndQueryString = oauthArgs.pathq
+	state.SSL = oauthArgs.ssl
 	state.Signature = oa.computeStateSignature(&state)
 
 	stateBytes, err := msgpack.Marshal(state)

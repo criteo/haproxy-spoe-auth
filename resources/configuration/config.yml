@@ -44,11 +44,7 @@ oidc:
 
   # A mapping of client credentials per protected domain
   clients:
-    app2.example.com:
-      client_id: app2-client
-      client_secret: app2-secret
-      redirect_url: http://app2.example.com:9080/oauth2/callback
-    app3.example.com:
-      client_id: app3-client
-      client_secret: app3-secret
-      redirect_url: http://app3.example.com:9080/oauth2/callback
+    dummy.example.com:
+      client_id: dummy-client
+      client_secret: dummy-secret
+      redirect_url: http://dummy.example.com:9080/oauth2/callback
