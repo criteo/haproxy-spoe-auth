@@ -8,7 +8,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.4
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.15.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.3
 	github.com/tebeka/selenium v0.9.9
 	github.com/vmihailenco/msgpack/v5 v5.3.5
 	golang.org/x/oauth2 v0.6.0
