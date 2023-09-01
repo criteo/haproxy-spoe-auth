@@ -14,7 +14,9 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	spoe "github.com/criteo/haproxy-spoe-go"
+	action "github.com/negasus/haproxy-spoe-go/action"
+	message "github.com/negasus/haproxy-spoe-go/message"
+
 	"golang.org/x/oauth2"
 )
 
@@ -177,120 +179,94 @@ func (oa *OIDCAuthenticator) checkCookie(cookieValue string, domain string) erro
 	return err
 }
 
-func extractOAuth2Args(msg *spoe.Message, readClientInfoFromMessages bool) (OAuthArgs, error) {
-	var ssl *bool
-	var host, pathq *string
+func extractOAuth2Args(msg *message.Message, readClientInfoFromMessages bool) (OAuthArgs, error) {
 	var cookie string
 	var clientid, clientsecret, redirecturl *string
 
-	for msg.Args.Next() {
-		arg := msg.Args.Arg
-
-		if arg.Name == "arg_ssl" {
-			x, ok := arg.Value.(bool)
-			if !ok {
-				return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
-					fmt.Errorf("SSL is not a bool: %v", arg.Value)
-			}
-
-			ssl = new(bool)
-			*ssl = x
-			continue
-		}
-
-		if arg.Name == "arg_host" {
-			x, ok := arg.Value.(string)
-			if !ok {
-				return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
-					fmt.Errorf("host is not a string: %v", arg.Value)
-			}
-
-			host = new(string)
-			*host = x
-			continue
-		}
-
-		if arg.Name == "arg_pathq" {
-			x, ok := arg.Value.(string)
-			if !ok {
-				return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
-					fmt.Errorf("pathq is not a string: %v", arg.Value)
-			}
-
-			pathq = new(string)
-			*pathq = x
-			continue
-		}
-
-		if arg.Name == "arg_cookie" {
-			x, ok := arg.Value.(string)
-			if !ok {
-				continue
-			}
-
-			cookie = x
-			continue
-		}
-
-		if arg.Name == "arg_client_id" {
-			if !readClientInfoFromMessages {
-				continue
-			}
-			x, ok := arg.Value.(string)
-			if !ok {
-				logrus.Debugf("clientid is not defined or not a string: %v", arg.Value)
-				continue
-			}
-
-			clientid = new(string)
-			*clientid = x
-			continue
-		}
-
-		if arg.Name == "arg_client_secret" {
-			if !readClientInfoFromMessages {
-				continue
-			}
-			x, ok := arg.Value.(string)
-			if !ok {
-				logrus.Debugf("clientsecret is not defined or not a string: %v", arg.Value)
-				continue
-			}
-
-			clientsecret = new(string)
-			*clientsecret = x
-			continue
-		}
-
-		if arg.Name == "arg_redirect_url" {
-			if !readClientInfoFromMessages {
-				continue
-			}
-			x, ok := arg.Value.(string)
-			if !ok {
-				logrus.Debugf("redirecturl is not defined or not a string: %v", arg.Value)
-				continue
-			}
-
-			redirecturl = new(string)
-			*redirecturl = x
-			continue
-		}
-	}
-
-	if ssl == nil {
+	// ssl
+	sslValue, ok := msg.KV.Get("arg_ssl")
+	if !ok {
 		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
 			ErrSSLArgNotFound
 	}
+	ssl, ok := sslValue.(bool)
+	if !ok {
+		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+			fmt.Errorf("SSL is not a bool: %v", sslValue)
+	}
 
-	if host == nil {
+	// host
+	hostValue, ok := msg.KV.Get("arg_host")
+	if !ok {
 		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
 			ErrHostArgNotFound
 	}
+	host, ok := hostValue.(string)
+	if !ok {
+		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+			fmt.Errorf("host is not a string: %v", hostValue)
+	}
 
-	if pathq == nil {
+	// pathq
+	pathqValue, ok := msg.KV.Get("arg_pathq")
+	if !ok {
 		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
 			ErrPathqArgNotFound
+	}
+	pathq, ok := pathqValue.(string)
+	if !ok {
+		return OAuthArgs{ssl: false, host: "", pathq: "", cookie: "", clientid: "", clientsecret: "", redirecturl: ""},
+			fmt.Errorf("pathq is not a string: %v", pathqValue)
+	}
+
+	// cookie
+	cookieValue, ok := msg.KV.Get("arg_cookie")
+	if ok {
+		cookie, _ = cookieValue.(string)
+	}
+
+	if readClientInfoFromMessages {
+		// client_id
+		clientidValue, ok := msg.KV.Get("arg_client_id")
+		if !ok {
+			logrus.Debugf("clientid is not defined : %v", clientidValue)
+		} else {
+			clientidStr, ok := clientidValue.(string)
+			if !ok {
+				logrus.Debugf("clientid is not a string: %v", clientidValue)
+			} else {
+				clientid = new(string)
+				*clientid = clientidStr
+			}
+		}
+
+		// client_secret
+		clientsecretValue, ok := msg.KV.Get("arg_client_secret")
+		if !ok {
+			logrus.Debugf("clientsecret is not defined : %v", clientsecretValue)
+		} else {
+			clientsecretStr, ok := clientsecretValue.(string)
+			if !ok {
+				logrus.Debugf("clientsecret is not a string: %v", clientsecretValue)
+			} else {
+				clientsecret = new(string)
+				*clientsecret = clientsecretStr
+			}
+		}
+
+		// redirect_url
+		redirecturlValue, ok := msg.KV.Get("arg_redirect_url")
+		if !ok {
+			logrus.Debugf("redirecturl is not defined : %v", redirecturlValue)
+		} else {
+			redirecturlStr, ok := redirecturlValue.(string)
+			if !ok {
+				logrus.Debugf("redirecturl is not a string: %v", redirecturlValue)
+			} else {
+				redirecturl = new(string)
+				*redirecturl = redirecturlStr
+			}
+		}
 	}
 
 	if clientid == nil || clientsecret == nil || redirecturl == nil {
@@ -299,7 +275,7 @@ func extractOAuth2Args(msg *spoe.Message, readClientInfoFromMessages bool) (OAut
 		clientsecret = &temp
 		redirecturl = &temp
 	}
-	return OAuthArgs{ssl: *ssl, host: *host, pathq: *pathq,
+	return OAuthArgs{ssl: ssl, host: host, pathq: pathq,
 					 cookie: cookie, clientid: *clientid,
 					 clientsecret: *clientsecret, redirecturl: *redirecturl},
 		nil
@@ -326,8 +302,7 @@ func extractDomainFromHost(host string) string {
 }
 
 // Authenticate treat an authentication request coming from HAProxy
-func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Action, error) {
-	// ssl, host, pathq, clientid, clientsecret, redirecturl, cookieValue, err := extractOAuth2Args(msg, oa.options.ReadClientInfoFromMessages)
+func (oa *OIDCAuthenticator) Authenticate(msg *message.Message) (bool, []action.Action, error) {
 	oauthArgs, err := extractOAuth2Args(msg, oa.options.ReadClientInfoFromMessages)
 	if err != nil {
 		return false, nil, fmt.Errorf("unable to extract origin URL: %v", err)
@@ -378,7 +353,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 		return false, nil, fmt.Errorf("unable to build authorize url: %w", err)
 	}
 
-	return false, []spoe.Action{BuildRedirectURLMessage(authorizationURL)}, nil
+	return false, []action.Action{BuildRedirectURLMessage(authorizationURL)}, nil
 }
 
 func (oa *OIDCAuthenticator) handleOAuth2Logout() http.HandlerFunc {

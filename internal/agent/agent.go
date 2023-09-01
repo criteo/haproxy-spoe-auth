@@ -2,69 +2,69 @@ package agent
 
 import (
 	"log"
+	"net"
+	"os"
 
 	"github.com/criteo/haproxy-spoe-auth/internal/auth"
-	spoe "github.com/criteo/haproxy-spoe-go"
+	"github.com/negasus/haproxy-spoe-go/action"
+	"github.com/negasus/haproxy-spoe-go/agent"
+	"github.com/negasus/haproxy-spoe-go/logger"
+	"github.com/negasus/haproxy-spoe-go/request"
 	"github.com/sirupsen/logrus"
 )
 
 // NotAuthenticatedMessage SPOE response stating the user is not authenticated
-var NotAuthenticatedMessage = spoe.ActionSetVar{
-	Name:  "is_authenticated",
-	Scope: spoe.VarScopeSession,
-	Value: false,
-}
+var NotAuthenticatedMessage = action.NewSetVar(action.ScopeSession, "is_authenticated", false)
 
 // AuthenticatedMessage SPOE response stating the user is authenticated
-var AuthenticatedMessage = spoe.ActionSetVar{
-	Name:  "is_authenticated",
-	Scope: spoe.VarScopeSession,
-	Value: true,
-}
+var AuthenticatedMessage = action.NewSetVar(action.ScopeSession, "is_authenticated", true)
 
 // StartAgent start the agent
 func StartAgent(interfaceAddr string, authenticators map[string]auth.Authenticator) {
-	agent := spoe.New(func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
-		var actions []spoe.Action
-
+	agent := agent.New(func(request *request.Request) {
 		var authenticated bool = false
 		var hasError bool = false
 
-		for messages.Next() {
-			msg := messages.Message
-			logrus.Debugf("new message with name %s received", msg.Name)
+		for authentifier_name, authentifier := range authenticators {
+			msg, err := request.Messages.GetByName(authentifier_name)
+			if err == nil {
+				logrus.Debugf("new message with name %s received", msg.Name)
 
-			authentifier, ok := authenticators[msg.Name]
-			if ok {
-				isAuthenticated, replyActions, err := authentifier.Authenticate(&msg)
+				isAuthenticated, replyActions, err := authentifier.Authenticate(msg)
 				if err != nil {
 					logrus.Errorf("unable to authenticate user: %v", err)
 					hasError = true
 					break
 				}
-				actions = append(actions, replyActions...)
+				request.Actions = append(request.Actions, replyActions...)
 
 				if isAuthenticated {
 					authenticated = true
 				}
+				break
 			}
 		}
 
 		if hasError {
-			actions = append(actions, auth.BuildHasErrorMessage())
+			request.Actions = append(request.Actions, auth.BuildHasErrorMessage())
 		} else {
 			if authenticated {
-				actions = append(actions, AuthenticatedMessage)
+				request.Actions = append(request.Actions, AuthenticatedMessage)
 			} else {
-				actions = append(actions, NotAuthenticatedMessage)
+				request.Actions = append(request.Actions, NotAuthenticatedMessage)
 			}
-
 		}
-		return actions, nil
-	})
+	}, logger.NewDefaultLog())
+
+	listener, err := net.Listen("tcp", interfaceAddr)
+	if err != nil {
+		log.Printf("error create listener, %v", err)
+		os.Exit(1)
+	}
+	defer listener.Close()
 
 	logrus.Infof("agent starting and listening on %s with %d authenticators", interfaceAddr, len(authenticators))
-	if err := agent.ListenAndServe(interfaceAddr); err != nil {
+	if err := agent.Serve(listener); err != nil {
 		log.Fatal(err)
 	}
 }
