@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	spoe "github.com/criteo/haproxy-spoe-go"
+	action "github.com/negasus/haproxy-spoe-go/action"
+	message "github.com/negasus/haproxy-spoe-go/message"
+
 	"github.com/go-ldap/ldap/v3"
 	"github.com/sirupsen/logrus"
 )
@@ -102,37 +104,33 @@ func parseBasicAuth(auth string) (username, password string, err error) {
 }
 
 // Authenticate handle an authentication request coming from HAProxy
-func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Action, error) {
-	var authorization string
+func (la *LDAPAuthenticator) Authenticate(msg *message.Message) (bool, []action.Action, error) {
+	authorization := ""
 	group := ""
 	isGroupProvided := false
 
-	for msg.Args.Next() {
-		arg := msg.Args.Arg
-
-		if arg.Name == "authorization" {
-			var ok bool
-			authorization, ok = arg.Value.(string)
-			if !ok {
-				return false, nil, nil
-			}
-		} else if arg.Name == "authorized_group" {
-			var ok bool
-			group, ok = arg.Value.(string)
-			if !ok {
-				group = ""
-			}
-			isGroupProvided = true
+	authorizationValue, ok := msg.KV.Get("authorization")
+	if ok {
+		authorization, ok = authorizationValue.(string)
+		if !ok {
+			return false, nil, nil
 		}
 	}
-
-	if isGroupProvided {
-		logrus.Debug(fmt.Sprintf("Group is <%s>", group))
-	}
-
 	if authorization == "" {
 		logrus.Debug("Authorization header is empty")
 		return false, nil, nil
+	}
+
+	authorizedGroupValue, ok := msg.KV.Get("authorized_group")
+	if ok {
+		group, ok = authorizedGroupValue.(string)
+		if !ok {
+			group = ""
+		}
+		isGroupProvided = true
+	}
+	if isGroupProvided {
+		logrus.Debug(fmt.Sprintf("Group is <%s>", group))
 	}
 
 	username, password, err := parseBasicAuth(authorization)
@@ -159,5 +157,5 @@ func (la *LDAPAuthenticator) Authenticate(msg *spoe.Message) (bool, []spoe.Actio
 	}
 
 	logrus.Debug("User is authenticated")
-	return true, []spoe.Action{AuthenticatedUserMessage(username)}, nil
+	return true, []action.Action{AuthenticatedUserMessage(username)}, nil
 }

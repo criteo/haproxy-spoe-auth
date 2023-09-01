@@ -1,30 +1,18 @@
 package auth
 
-import spoe "github.com/criteo/haproxy-spoe-go"
+import action "github.com/negasus/haproxy-spoe-go/action"
 
 // BuildRedirectURLMessage build a message containing the URL the user should be redirected too
-func BuildRedirectURLMessage(url string) spoe.ActionSetVar {
-	return spoe.ActionSetVar{
-		Name:  "redirect_url",
-		Scope: spoe.VarScopeSession,
-		Value: url,
-	}
+func BuildRedirectURLMessage(url string) action.Action {
+	return action.NewSetVar(action.ScopeSession, "redirect_url", url)
 }
 
 // BuildHasErrorMessage build a message stating an error was thrown in SPOE agent
-func BuildHasErrorMessage() spoe.ActionSetVar {
-	return spoe.ActionSetVar{
-		Name:  "has_error",
-		Scope: spoe.VarScopeSession,
-		Value: true,
-	}
+func BuildHasErrorMessage() action.Action {
+	return action.NewSetVar(action.ScopeSession, "has_error", true)
 }
 
 // AuthenticatedUserMessage build a message containing the username of the authenticated user
-func AuthenticatedUserMessage(username string) spoe.ActionSetVar {
-	return spoe.ActionSetVar{
-		Name:  "authenticated_user",
-		Scope: spoe.VarScopeSession,
-		Value: username,
-	}
+func AuthenticatedUserMessage(username string) action.Action {
+	return action.NewSetVar(action.ScopeSession, "authenticated_user", username)
 }
