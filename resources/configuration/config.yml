@@ -14,7 +14,7 @@ ldap:
   # The DN and password of the user to bind with in order to perform the search query to find the user
   user_dn: cn=admin,dc=example,dc=com
   password: password
-  # The base DN used for the search queries 
+  # The base DN used for the search queries
   base_dn: dc=example,dc=com
   # The filter for the query searching for the user provided
   user_filter: "(&(cn={login})(ou:dn:={group}))"
@@ -36,6 +36,7 @@ oidc:
   # Various properties of the cookie holding the ID Token of the user
   cookie_name: authsession
   cookie_secure: false
+  # If not set, then uses ID token expire timestamp
   cookie_ttl_seconds: 3600
   # The secret used to sign the state parameter
   signature_secret: myunsecuresecret
