@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -78,13 +79,14 @@ type OIDCAuthenticator struct {
 }
 
 type OAuthArgs struct {
-	ssl bool
-	host string
-	pathq string
-	clientid string
+	ssl          bool
+	host         string
+	pathq        string
+	clientid     string
 	clientsecret string
-	redirecturl string
-	cookie string
+	redirecturl  string
+	cookie       string
+	tokenClaims  []string
 }
 
 // NewOIDCAuthenticator create an instance of an OIDC authenticator
@@ -124,14 +126,14 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 		http.HandleFunc(options.LogoutPath, oa.handleOAuth2Logout())
 		logrus.Infof("OIDC API is exposed on %s", options.CallbackAddr)
 		http.HandleFunc(options.HealthCheckPath, handleHealthCheck)
-		http.ListenAndServe(options.CallbackAddr, nil)
+		logrus.Fatalln(http.ListenAndServe(options.CallbackAddr, nil))
 	}()
 
 	return oa
 }
 
 func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 func (oa *OIDCAuthenticator) withOAuth2Config(domain string, callback func(c oauth2.Config) error) error {
@@ -164,24 +166,25 @@ func (oa *OIDCAuthenticator) verifyIDToken(context context.Context, domain strin
 	// Parse and verify ID Token payload.
 	idToken, err := verifier.Verify(context, rawIDToken)
 	if err != nil {
-		return nil, fmt.Errorf("unable to verify ID Token: %v", err)
+		return nil, fmt.Errorf("unable to verify ID Token: %w", err)
 	}
 	return idToken, nil
 }
 
-func (oa *OIDCAuthenticator) checkCookie(cookieValue string, domain string) error {
+func (oa *OIDCAuthenticator) decryptCookie(cookieValue string, domain string) (*oidc.IDToken, error) {
 	idToken, err := oa.encryptor.Decrypt(cookieValue)
 	if err != nil {
-		return fmt.Errorf("unable to decrypt session cookie: %v", err)
+		return nil, fmt.Errorf("unable to decrypt session cookie: %w", err)
 	}
 
-	_, err = oa.verifyIDToken(context.Background(), domain, idToken)
-	return err
+	token, err := oa.verifyIDToken(context.Background(), domain, idToken)
+	return token, err
 }
 
 func extractOAuth2Args(msg *message.Message, readClientInfoFromMessages bool) (OAuthArgs, error) {
 	var cookie string
 	var clientid, clientsecret, redirecturl *string
+	var tokenClaims []string
 
 	// ssl
 	sslValue, ok := msg.KV.Get("arg_ssl")
@@ -223,6 +226,15 @@ func extractOAuth2Args(msg *message.Message, readClientInfoFromMessages bool) (O
 	cookieValue, ok := msg.KV.Get("arg_cookie")
 	if ok {
 		cookie, _ = cookieValue.(string)
+
+		// Token claims
+		tokenClaimsValue, ok := msg.KV.Get("arg_token_claims")
+		if ok {
+			strV, ok := tokenClaimsValue.(string)
+			if ok {
+				tokenClaims = strings.Split(strV, " ")
+			}
+		}
 	}
 
 	if readClientInfoFromMessages {
@@ -276,8 +288,9 @@ func extractOAuth2Args(msg *message.Message, readClientInfoFromMessages bool) (O
 		redirecturl = &temp
 	}
 	return OAuthArgs{ssl: ssl, host: host, pathq: pathq,
-					 cookie: cookie, clientid: *clientid,
-					 clientsecret: *clientsecret, redirecturl: *redirecturl},
+			cookie: cookie, clientid: *clientid,
+			clientsecret: *clientsecret, redirecturl: *redirecturl,
+			tokenClaims: tokenClaims},
 		nil
 }
 
@@ -323,14 +336,47 @@ func (oa *OIDCAuthenticator) Authenticate(msg *message.Message) (bool, []action.
 
 	// Verify the cookie to make sure the user is authenticated
 	if oauthArgs.cookie != "" {
-		err := oa.checkCookie(oauthArgs.cookie, extractDomainFromHost(oauthArgs.host))
+		idToken, err := oa.decryptCookie(oauthArgs.cookie, domain)
 		if err != nil {
+			// CoreOS/go-oidc does not have error types, so the errors are handled using strings
+			// comparison.
+			if errors.Is(err, &oidc.TokenExpiredError{}) || strings.Contains(err.Error(), "oidc:") {
+				authorizationURL, e := oa.builaAuthorizationURL(domain, oauthArgs)
+				if e != nil {
+					return false, nil, e
+				}
+
+				logrus.Infof("Authentication failed, redirecting to OIDC provider %s, reason: %s", authorizationURL, err)
+
+				return false, []action.Action{BuildRedirectURLMessage(authorizationURL)}, nil
+			}
+
 			return false, nil, err
-		} else {
-			return true, nil, nil
 		}
+
+		if len(oauthArgs.tokenClaims) == 0 {
+			return true, nil, nil
+		} else {
+			// Extract token claims.
+			actions, err := BuildTokenClaimsMessage(idToken, oauthArgs.tokenClaims)
+			if err != nil {
+				return false, nil, err
+			}
+
+			return true, actions, nil
+		}
+
 	}
 
+	authorizationURL, err := oa.builaAuthorizationURL(domain, oauthArgs)
+	if err != nil {
+		return false, nil, err
+	}
+
+	return false, []action.Action{BuildRedirectURLMessage(authorizationURL)}, nil
+}
+
+func (oa *OIDCAuthenticator) builaAuthorizationURL(domain string, oauthArgs OAuthArgs) (string, error) {
 	currentTime := time.Now()
 
 	var state State
@@ -341,7 +387,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *message.Message) (bool, []action.
 
 	stateBytes, err := msgpack.Marshal(state)
 	if err != nil {
-		return false, nil, fmt.Errorf("unable to marshal the state")
+		return "", fmt.Errorf("unable to marshal the state")
 	}
 
 	var authorizationURL string
@@ -350,10 +396,10 @@ func (oa *OIDCAuthenticator) Authenticate(msg *message.Message) (bool, []action.
 		return nil
 	})
 	if err != nil {
-		return false, nil, fmt.Errorf("unable to build authorize url: %w", err)
+		return "", fmt.Errorf("unable to build authorize url: %w", err)
 	}
 
-	return false, []action.Action{BuildRedirectURLMessage(authorizationURL)}, nil
+	return authorizationURL, nil
 }
 
 func (oa *OIDCAuthenticator) handleOAuth2Logout() http.HandlerFunc {

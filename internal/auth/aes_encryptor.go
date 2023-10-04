@@ -68,7 +68,7 @@ func (ae *AESEncryptor) Decrypt(securemess string) (string, error) {
 
 	ciphertextAndNonce, err := base64.StdEncoding.DecodeString(securemess)
 	if err != nil {
-		return "", fmt.Errorf("unable to b64 decode secure message: %v", err)
+		return "", fmt.Errorf("unable to b64 decode secure message: %w", err)
 	}
 
 	block, err := aes.NewCipher(ae.Key)
