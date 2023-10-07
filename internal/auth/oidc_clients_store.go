@@ -2,6 +2,7 @@ package auth
 
 import (
 	"strings"
+	"sync"
 )
 
 type OIDCClientConfig struct {
@@ -18,6 +19,8 @@ type OIDCClientsStore interface {
 
 type StaticOIDCClientsStore struct {
 	clients map[string]OIDCClientConfig
+
+	mtx sync.RWMutex
 }
 
 func NewStaticOIDCClientStore(config map[string]OIDCClientConfig) *StaticOIDCClientsStore {
@@ -29,6 +32,9 @@ func NewEmptyStaticOIDCClientStore() *StaticOIDCClientsStore {
 }
 
 func (ocf *StaticOIDCClientsStore) GetClient(domain string) (*OIDCClientConfig, error) {
+	ocf.mtx.RLock()
+	defer ocf.mtx.RUnlock()
+
 	if config, ok := ocf.clients[domain]; ok {
 		return &config, nil
 	}
@@ -36,11 +42,14 @@ func (ocf *StaticOIDCClientsStore) GetClient(domain string) (*OIDCClientConfig, 
 }
 
 func (ocf *StaticOIDCClientsStore) AddClient(domain string, clientid string, clientsecret string, redirecturl string) {
+	ocf.mtx.Lock()
+	defer ocf.mtx.Unlock()
+
 	if _, ok := ocf.clients[domain]; !ok {
-		ocf.clients[strings.Clone(domain)] = OIDCClientConfig {
-			ClientID: strings.Clone(clientid),
+		ocf.clients[strings.Clone(domain)] = OIDCClientConfig{
+			ClientID:     strings.Clone(clientid),
 			ClientSecret: strings.Clone(clientsecret),
-			RedirectURL: strings.Clone(redirecturl),
+			RedirectURL:  strings.Clone(redirecturl),
 		}
 	}
 }
