@@ -41,7 +41,6 @@ func StartAgent(interfaceAddr string, authenticators map[string]auth.Authenticat
 				if isAuthenticated {
 					authenticated = true
 				}
-				break
 			}
 		}
 
