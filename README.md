@@ -1,5 +1,6 @@
 # HAProxy SPOE Authentication
 
+
 ![Build & Test](https://github.com/criteo/haproxy-spoe-auth/workflows/Build%20&%20Test/badge.svg)
 
 This project is a an agent allowing HAProxy to to handle authentication requests.
