@@ -271,11 +271,14 @@ func extractOAuth2Args(msg *message.Message, readClientInfoFromMessages bool) (O
 		}
 	}
 
-	if clientid == nil || clientsecret == nil || redirecturl == nil {
+	if clientid == nil || redirecturl == nil {
 		temp := ""
 		clientid = &temp
-		clientsecret = &temp
 		redirecturl = &temp
+	}
+	if clientsecret == nil {
+		temp := ""
+		clientsecret = &temp
 	}
 	return OAuthArgs{ssl: ssl, host: host, pathq: pathq,
 					 cookie: cookie, clientid: *clientid,
