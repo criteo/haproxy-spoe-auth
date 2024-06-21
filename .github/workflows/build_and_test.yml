@@ -1,4 +1,4 @@
-on: [push]
+on: [push, pull_request]
 
 name: Build & Test
 
@@ -10,7 +10,7 @@ jobs:
       BROWSER_PATH: /usr/bin/google-chrome
       HEADLESS: y
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - uses: nanasess/setup-chromedriver@master
       with:
         # Optional: do not specify to match Chrome's version
