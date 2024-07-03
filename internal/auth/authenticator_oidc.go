@@ -346,7 +346,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *message.Message) (bool, []action.
 			// CoreOS/go-oidc does not have error types, so the errors are handled using strings
 			// comparison.
 			if errors.Is(err, &oidc.TokenExpiredError{}) || strings.Contains(err.Error(), "oidc:") {
-				authorizationURL, e := oa.builaAuthorizationURL(domain, oauthArgs)
+				authorizationURL, e := oa.buildAuthorizationURL(domain, oauthArgs)
 				if e != nil {
 					return false, nil, e
 				}
@@ -373,7 +373,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *message.Message) (bool, []action.
 
 	}
 
-	authorizationURL, err := oa.builaAuthorizationURL(domain, oauthArgs)
+	authorizationURL, err := oa.buildAuthorizationURL(domain, oauthArgs)
 	if err != nil {
 		return false, nil, err
 	}
@@ -381,7 +381,7 @@ func (oa *OIDCAuthenticator) Authenticate(msg *message.Message) (bool, []action.
 	return false, []action.Action{BuildRedirectURLMessage(authorizationURL)}, nil
 }
 
-func (oa *OIDCAuthenticator) builaAuthorizationURL(domain string, oauthArgs OAuthArgs) (string, error) {
+func (oa *OIDCAuthenticator) buildAuthorizationURL(domain string, oauthArgs OAuthArgs) (string, error) {
 	currentTime := time.Now()
 
 	var state State
