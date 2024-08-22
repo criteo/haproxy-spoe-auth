@@ -15,6 +15,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	cache "github.com/go-pkgz/expirable-cache/v3"
 	action "github.com/negasus/haproxy-spoe-go/action"
 	message "github.com/negasus/haproxy-spoe-go/message"
 
@@ -74,7 +75,7 @@ type OIDCAuthenticator struct {
 
 	signatureComputer *HmacSha256Computer
 	encryptor         *AESEncryptor
-	pkceVerifier      string
+	pkceVerifierCache cache.Cache[string, string]
 
 	options OIDCAuthenticatorOptions
 }
@@ -120,7 +121,7 @@ func NewOIDCAuthenticator(options OIDCAuthenticatorOptions) *OIDCAuthenticator {
 		options:           options,
 		signatureComputer: NewHmacSha256Computer(options.SignatureSecret),
 		encryptor:         NewAESEncryptor(options.EncryptionSecret),
-		pkceVerifier:      oauth2.GenerateVerifier(),
+		pkceVerifierCache: cache.NewCache[string, string](),
 	}
 
 	go func() {
@@ -396,8 +397,15 @@ func (oa *OIDCAuthenticator) buildAuthorizationURL(domain string, oauthArgs OAut
 	}
 
 	var authorizationURL string
+	pkceVerifier := oauth2.GenerateVerifier()
+	stateStr := base64.StdEncoding.EncodeToString(stateBytes)
+	cacheTTL := time.Second * 3600
+	if oa.options.CookieTTL != 0 {
+		cacheTTL = oa.options.CookieTTL
+	}
+	oa.pkceVerifierCache.Set(stateStr, pkceVerifier, cacheTTL)
 	err = oa.withOAuth2Config(domain, func(config oauth2.Config) error {
-		authorizationURL = config.AuthCodeURL(base64.StdEncoding.EncodeToString(stateBytes), oauth2.S256ChallengeOption(oa.pkceVerifier))
+		authorizationURL = config.AuthCodeURL(stateStr, oauth2.S256ChallengeOption(pkceVerifier))
 		return nil
 	})
 	if err != nil {
@@ -435,9 +443,15 @@ func (oa *OIDCAuthenticator) handleOAuth2Callback(tmpl *template.Template, error
 
 		domain := extractDomainFromHost(r.Host)
 
+		pkceVerifier, ok := oa.pkceVerifierCache.Get(stateB64Payload)
+		if !ok {
+			logrus.Error("cannot retrieve pkce verifier")
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
 		var oauth2Token *oauth2.Token
 		err := oa.withOAuth2Config(domain, func(config oauth2.Config) error {
-			token, err := config.Exchange(r.Context(), r.URL.Query().Get("code"), oauth2.VerifierOption(oa.pkceVerifier))
+			token, err := config.Exchange(r.Context(), r.URL.Query().Get("code"), oauth2.VerifierOption(pkceVerifier))
 			oauth2Token = token
 			return err
 		})
