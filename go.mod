@@ -13,7 +13,7 @@ require (
 	github.com/tebeka/selenium v0.9.9
 	github.com/tidwall/gjson v1.17.3
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	golang.org/x/oauth2 v0.22.0
+	golang.org/x/oauth2 v0.24.0
 )
 
 require (
