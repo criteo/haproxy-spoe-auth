@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/coreos/go-oidc/v3 v3.12.0
-	github.com/go-ldap/ldap/v3 v3.4.9
+	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/go-pkgz/expirable-cache/v3 v3.0.0
 	github.com/negasus/haproxy-spoe-go v1.0.5
 	github.com/sirupsen/logrus v1.9.3
