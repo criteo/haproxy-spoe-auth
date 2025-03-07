@@ -11,7 +11,7 @@ type OIDCClientConfig struct {
 type OIDCClientsStore interface {
 	// Retrieve the client_id and client_secret based on the domain
 	GetClient(domain string) (*OIDCClientConfig, error)
-	AddClient(domain, clientid, clientsecret, redirecturl string)
+	AddClient(domain string, clientid string, clientsecret string, redirecturl string)
 }
 
 type StaticOIDCClientsStore struct {
@@ -49,7 +49,7 @@ func (ocf *StaticOIDCClientsStore) GetClient(domain string) (*OIDCClientConfig, 
 	return nil, ErrOIDCClientConfigNotFound
 }
 
-func (ocf *StaticOIDCClientsStore) AddClient(domain, clientid, clientsecret, redirecturl string) {
+func (ocf *StaticOIDCClientsStore) AddClient(domain string, clientid string, clientsecret string, redirecturl string) {
 	ocf.mtx.Lock()
 	defer ocf.mtx.Unlock()
 
