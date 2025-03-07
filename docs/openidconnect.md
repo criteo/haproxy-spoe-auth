@@ -70,17 +70,72 @@ Cookies are secure by default. There is an option to disable that flag but pleas
 disable the flag. It would expose your users' sessions to leakage on the Internet. This flag is only here for test
 purposes.
 
-### Cookie TTL
+### Cookie TTL
 
 The cookie has a TTL set to 1h by default. This is the amount of time before the user does a new round trip to the
 OAuth2 server. If the server has kept the user logged in, there will be no authentication involved but the user will be
 redirected. You need to find the right balance between longevity of the session and security. The more the session lives,
 the more there are chances the session has been compromised.
 
+### Token Claims
+
+The SPOE agent supports information extraction from an OpenID ID token claims data.
+
+The required claims list must be passed from HAProxy in a variable `arg_token_claims`
+as JSON paths separated by spaces.
+If the claims themselves contain spaces, dashes or other characters not in [a-zA-Z0-9], the characters must be URL Query encoded.
+On successful authentication, the agent
+will set HAProxy session variables, one variable per requested claim as:
+
+```
+token_claim_{{ JSON path | replace with '_' everything except a-z, A-Z, 0-9 }}={{ claim value }}
+```
+
+See [messages_test.go](../internal/auth/messages_test.go) for examples.
+
+### Token Expressions
+
+The SPOE agent supports simple expressions evaluation based on an OpenID ID token claims data.
+If the claims or their values contain spaces, dashes or other characters not in [a-zA-Z0-9], the characters must be URL Query encoded.
+
+Supported operations are:
+
+- exists
+- doesnotexist
+- in
+- notin
+
+The expressions must be passed from HAProxy in a variable `arg_token_expressions` in a format:
+
+```
+{{ operation }};{{ claim JSON path }};{{ value }}
+```
+
+for `in` and `notin` and
+
+```
+{{ operation }};{{ claim JSON path }}
+```
+
+for `exists` and `doesnotexit`.
+
+The operations `in` and `notin` expect that the `JSON path` points to a list of values.
+
+The agent evaluates the requested operations and passes results in HAProxy session variables as
+```
+token_expression_{{ operation }}_{{ claim JSON path | replace with '_' everything except a-z, A-Z, 0-9 }}_{{ value | replace with '_' everything except a-z, A-Z, 0-9 }}=(1|0)
+```
+for `in`, `notin` and 
+
+```
+token_expression_{{ operation }}_{{ claim JSON path | replace with '_' everything except a-z, A-Z, 0-9 }}=(1|0)
+```
+for `exists`, `doesnotexist`.
+
+See [messages_test.go](../internal/auth/messages_test.go) for examples.
 
 ## TODO
 
 * Add a mechanism to denylist a token.
-* Allow the SPOE agent to match a certain list of groups the user belongs to.
 * Think about secret rotation.
 * Prevent replay attacks by putting some kind of nonce in the state.
