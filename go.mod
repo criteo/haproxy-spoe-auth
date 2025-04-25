@@ -8,7 +8,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.14.1
 	github.com/go-ldap/ldap/v3 v3.4.11
 	github.com/go-pkgz/expirable-cache/v3 v3.0.0
-	github.com/negasus/haproxy-spoe-go v1.0.5
+	github.com/negasus/haproxy-spoe-go v1.0.6
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
