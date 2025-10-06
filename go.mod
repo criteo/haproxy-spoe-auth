@@ -1,11 +1,9 @@
 module github.com/criteo/haproxy-spoe-auth
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.24.0
 
 require (
-	github.com/coreos/go-oidc/v3 v3.15.0
+	github.com/coreos/go-oidc/v3 v3.16.0
 	github.com/go-ldap/ldap/v3 v3.4.11
 	github.com/go-pkgz/expirable-cache/v3 v3.0.0
 	github.com/negasus/haproxy-spoe-go v1.0.7
@@ -24,7 +22,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
