@@ -1,8 +1,6 @@
 module github.com/criteo/haproxy-spoe-auth
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.24.0
 
 require (
 	github.com/coreos/go-oidc/v3 v3.15.0
@@ -15,7 +13,7 @@ require (
 	github.com/tebeka/selenium v0.9.9
 	github.com/tidwall/gjson v1.18.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	golang.org/x/oauth2 v0.29.0
+	golang.org/x/oauth2 v0.32.0
 )
 
 require (
