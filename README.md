@@ -79,3 +79,13 @@ Please see the [dedicated section](./docs/openidconnect.md).
 ## License
 
 This project is licensed under the Apache 2.0 license. The terms of the license are detailed in LICENSE.
+
+## Changelog
+
+### v1.10.0
+
+- Breaking changes:
+  - Flag `dynamic-client-info` is replaced with `dynamic` to simplify YAML based configuration
+  - LDAP and OIDC configuration sections require `spoe_message` configuration option to be set
+- Added:
+  - OpenID Connect Token Claims evaluation to HAProxy session variables, see [OpenID Connect configuration](docs/openidconnect.md)

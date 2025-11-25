@@ -3,7 +3,7 @@ FROM golang:1.23
 # Using root user creates permission issues on the host, particularly with go.sum being regenerated within the container.
 RUN useradd -s /bin/bash -m -U dev
 
-RUN go install github.com/go-delve/delve/cmd/dlv@v1.8.0
+RUN go install github.com/go-delve/delve/cmd/dlv@v1.25.2
 RUN go install github.com/cespare/reflex@v0.3.1
 
 WORKDIR /usr/app

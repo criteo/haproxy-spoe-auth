@@ -1,11 +1,11 @@
 package auth
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	action "github.com/negasus/haproxy-spoe-go/action"
 	"github.com/tidwall/gjson"
 )
@@ -25,14 +25,7 @@ func AuthenticatedUserMessage(username string) action.Action {
 	return action.NewSetVar(action.ScopeSession, "authenticated_user", username)
 }
 
-func BuildTokenClaimsMessage(idToken *oidc.IDToken, claimsFilter []string) ([]action.Action, error) {
-	var claimsData json.RawMessage
-
-	if err := idToken.Claims(&claimsData); err != nil {
-		return nil, fmt.Errorf("unable to load OIDC claims: %w", err)
-	}
-
-	claimsVals := gjson.ParseBytes(claimsData)
+func BuildTokenClaimsMessage(claimsVals *gjson.Result, claimsFilter []string) []action.Action {
 	result := make([]action.Action, 0, len(claimsFilter))
 
 	for i := range claimsFilter {
@@ -42,17 +35,135 @@ func BuildTokenClaimsMessage(idToken *oidc.IDToken, claimsFilter []string) ([]ac
 			continue
 		}
 
-		key := computeSPOEKey(claimsFilter[i])
+		key := computeSPOEClaimKey(claimsFilter[i])
 		result = append(result, action.NewSetVar(action.ScopeSession, key, gjsonToSPOEValue(&value)))
+	}
+
+	return result
+}
+
+// The obvious constants are defined here so as not to have "magic" numbers
+// in HAProxy SPOE response actions.
+const (
+	valueTrue  = 1
+	valueFalse = 0
+)
+
+var ErrTokenExpressionUnknownOperation = errors.New("unknown operation is provided as token expression")
+
+func EvaluateTokenExpressions(claimsVals *gjson.Result, tokenExpressions []OAuthTokenExpression) ([]action.Action, error) {
+	var result = make([]action.Action, 0, len(tokenExpressions))
+
+	for i := range tokenExpressions {
+		pe := &tokenExpressions[i]
+
+		value := claimsVals.Get(pe.TokenClaim)
+
+		switch pe.Operation {
+		case in:
+			if existsIn(&value, pe.RawValue) {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueTrue))
+
+			} else {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueFalse))
+			}
+
+		case notIn:
+			if !existsIn(&value, pe.RawValue) {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueTrue))
+
+			} else {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueFalse))
+			}
+
+		case exists:
+			if value.Exists() {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueTrue))
+			} else {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueFalse))
+			}
+
+		case doesNotExist:
+			if value.Exists() {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueFalse))
+			} else {
+				result = append(
+					result,
+					action.NewSetVar(action.ScopeSession, computeSPOEExpressionKey(pe), valueTrue))
+			}
+
+		default:
+			return nil, fmt.Errorf("%w: token expression: +%v", ErrTokenExpressionUnknownOperation, *pe)
+		}
 	}
 
 	return result, nil
 }
 
-var spoeKeyReplacer = strings.NewReplacer("-", "_", ".", "_")
+func normalizeSPOEKV(s string) string {
+	var result = &strings.Builder{}
 
-func computeSPOEKey(key string) string {
-	return "token_claim_" + spoeKeyReplacer.Replace(key)
+	result.Grow(len(s))
+
+	for _, c := range s {
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			_, _ = result.WriteRune(c)
+		} else {
+			_, _ = result.WriteRune('_')
+		}
+	}
+
+	return result.String()
+}
+
+func computeSPOEClaimKey(key string) string {
+	return "token_claim_" + normalizeSPOEKV(key)
+}
+
+func normalizeSPOEExpressionValue(val string) string {
+	return normalizeSPOEKV(val)
+}
+
+func decodeRequestValue(s string) (string, error) {
+	val, err := url.QueryUnescape(s)
+	if err != nil {
+		return "", err
+	}
+
+	return val, nil
+}
+
+func computeSPOEExpressionKey(expr *OAuthTokenExpression) string {
+	var result = &strings.Builder{}
+
+	_, _ = result.WriteString("token_expression_")
+	_, _ = result.WriteString(expr.Operation.String())
+	_, _ = result.WriteRune('_')
+	_, _ = result.WriteString(normalizeSPOEKV(expr.TokenClaim))
+
+	if expr.Operation == exists || expr.Operation == doesNotExist {
+		return result.String()
+	}
+
+	_, _ = result.WriteRune('_')
+
+	_, _ = result.WriteString(normalizeSPOEExpressionValue(expr.RawValue))
+
+	return result.String()
 }
 
 func gjsonToSPOEValue(value *gjson.Result) interface{} {

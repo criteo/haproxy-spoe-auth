@@ -10,12 +10,13 @@ require (
 	github.com/go-pkgz/expirable-cache/v3 v3.0.0
 	github.com/negasus/haproxy-spoe-go v1.0.7
 	github.com/sirupsen/logrus v1.9.3
+	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.11.1
 	github.com/tebeka/selenium v0.9.9
 	github.com/tidwall/gjson v1.18.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
-	golang.org/x/oauth2 v0.29.0
+	golang.org/x/oauth2 v0.28.0
 )
 
 require (
@@ -33,7 +34,6 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
